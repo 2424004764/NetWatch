@@ -30,7 +30,17 @@ public sealed class AppRow : INotifyPropertyChanged
     public string Name { get; }
     public string? Path { get; }
     public HashSet<int> Pids { get; } = new();
-    public ImageSource? Icon { get; }
+    private ImageSource? _icon;
+    public ImageSource? Icon
+    {
+        get => _icon;
+        set
+        {
+            if (_icon == value) return;
+            _icon = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+        }
+    }
     public DateTime LastUpdatedUtc { get; private set; } = DateTime.UtcNow;
     /// <summary>排序权重：当前总速率（越大越靠前）。</summary>
     public double SortScore => _upSpeed + _downSpeed;

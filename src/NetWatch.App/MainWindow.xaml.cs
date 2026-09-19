@@ -26,7 +26,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, AppRow> _byKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly ObservableCollection<IpRow> _ipRows = new();
     private readonly Dictionary<string, IpRow> _ipByAddr = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ImageSource?> _iconCache = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private double _lastElapsedSec;
@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         ipView.CustomSort = Comparer<object>.Create((a, b) => ((IpRow)b).SortScore.CompareTo(((IpRow)a).SortScore));
         IpList.ItemsSource = ipView;
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             _monitor = NetworkMonitor.Start();
@@ -62,10 +63,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        Log.Info($"诊断：内核监控启动 {sw.ElapsedMilliseconds} ms");
         _timer.Tick += OnTick;
         _timer.Start();
+        sw.Restart();
         try { _blocks.Load(); }
         catch (Exception ex) { Log.Error("屏蔽功能初始化失败：" + ex.Message); }
+        Log.Info($"诊断：屏蔽规则加载 {sw.ElapsedMilliseconds} ms");
         Loaded += (_, _) => InitTray();
         Closed += Window_Closed;
     }
@@ -77,8 +81,12 @@ public partial class MainWindow : Window
         catch (Exception ex) { Log.Error("刷新失败：" + ex.Message); }
     }
 
+    private bool _firstTick = true;
+    private int _idleTicks;
+
     private void Tick()
     {
+        var swTick = _firstTick ? System.Diagnostics.Stopwatch.StartNew() : null;
         var mon = _monitor!;
         double nowSec = _clock.Elapsed.TotalSeconds;
         double elapsed = nowSec - _lastElapsedSec;
@@ -137,6 +145,8 @@ public partial class MainWindow : Window
                 _byKey[kv.Key] = row;
                 _rows.Add(row);
             }
+            if (row.Icon is null && kv.Value.Path is not null && _iconCache.TryGetValue(kv.Value.Path, out var laterIcon))
+                row.Icon = laterIcon; // 后台提取完成后回填
             row.Apply(kv.Value, connByPid, elapsed, nowUtc);
         }
 
@@ -151,6 +161,16 @@ public partial class MainWindow : Window
         }
 
         UpdateIpRows(mon.SnapshotRemotes(), conns, elapsed, nowUtc);
+
+        // 空闲自适应：连续 5 个周期总流量小于 2KB 则降频到 3 秒，有流量立即恢复 1 秒
+        _idleTicks = (tickUp + tickDown) < 2048 ? _idleTicks + 1 : 0;
+        _timer.Interval = TimeSpan.FromSeconds(_idleTicks >= 5 ? 3 : 1);
+
+        if (swTick != null)
+        {
+            _firstTick = false;
+            Log.Info($"诊断：首次刷新 {swTick.ElapsedMilliseconds} ms，聚合 {aggByKey.Count} 个应用 / {snap.Count} 个进程");
+        }
 
         double upSpeed = tickUp / elapsed, downSpeed = tickDown / elapsed;
         _grandUp += tickUp;
@@ -509,18 +529,29 @@ public partial class MainWindow : Window
 
     // ── 图标缓存 ─────────────────────────────────────────
 
+    private readonly HashSet<string> _iconPending = new();
+
     private ImageSource? GetIcon(string? path)
     {
         if (string.IsNullOrEmpty(path)) return null;
         if (_iconCache.TryGetValue(path, out var cached)) return cached;
-        ImageSource? src = null;
-        try
+        lock (_iconPending)
         {
-            using var ic = System.Drawing.Icon.ExtractAssociatedIcon(path);
-            if (ic != null) src = Icons.ToImageSource(ic.ToBitmap());
+            if (!_iconPending.Add(path)) return null; // 已有后台任务在提取
         }
-        catch { }
-        _iconCache[path] = src;
-        return src;
+        var captured = path;
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            ImageSource? src = null;
+            try
+            {
+                using var ic = System.Drawing.Icon.ExtractAssociatedIcon(captured);
+                if (ic != null) src = Icons.ToImageSource(ic.ToBitmap()); // Freeze 过，可跨线程
+            }
+            catch { }
+            _iconCache[captured] = src;
+            lock (_iconPending) _iconPending.Remove(captured);
+        });
+        return null;
     }
 }
