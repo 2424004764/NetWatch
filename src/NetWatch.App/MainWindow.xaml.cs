@@ -278,6 +278,17 @@ public partial class MainWindow : Window
         win.Show();
     }
 
+    private void OnOpenHttpDebug(object sender, RoutedEventArgs e)
+    {
+        foreach (Window w in Application.Current.Windows)
+            if (w is HttpDebugWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        new HttpDebugWindow { Owner = this }.Show();
+    }
+
     private void OnOpenBlockList(object sender, RoutedEventArgs e)
     {
         foreach (Window w in Application.Current.Windows)
@@ -448,6 +459,7 @@ public partial class MainWindow : Window
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("显示主窗口", null, (_, _) => ShowMain());
         menu.Items.Add("屏蔽管理", null, (_, _) => Dispatcher.Invoke(() => OnOpenBlockList(this, new RoutedEventArgs())));
+        menu.Items.Add("HTTP 调试", null, (_, _) => Dispatcher.Invoke(() => OnOpenHttpDebug(this, new RoutedEventArgs())));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("退出 NetWatch", null, (_, _) => ExitApp());
         _tray = new WinForms.NotifyIcon

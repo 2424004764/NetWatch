@@ -30,6 +30,12 @@ if (args.Contains("--sniff"))
     return RunSniffView(args);
 }
 
+// MITM 调试代理：--mitm [秒数] —— 启动本地代理并打印解开的 HTTP 明文
+if (args.Contains("--mitm"))
+{
+    return RunMitmView(args);
+}
+
 int seconds = args.Length > 0 && int.TryParse(args[0], out var s) ? s : 15;
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.WriteLine($"NetWatch CLI — 监听 {seconds} 秒（需要管理员权限）");
@@ -156,6 +162,34 @@ static int RunSniffView(string[] args)
     Console.WriteLine($"抓包 {seconds} 秒：{target}（{sniffer.InterfaceCount} 个监听点）…");
     System.Threading.Thread.Sleep(TimeSpan.FromSeconds(seconds));
     Console.WriteLine($"\n结束，共 {Interlocked.Read(ref count)} 个包。");
+    return 0;
+}
+
+static int RunMitmView(string[] args)
+{
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    var secArg = ArgAfter(args, "--mitm");
+    int seconds = secArg != null && int.TryParse(secArg, out var v) && v > 0 ? v : 30;
+
+    NetWatch.Core.Mitm.CertMaker.EnsureRootCa();
+    using var proxy = new NetWatch.Core.Mitm.MitmProxy();
+    proxy.ExchangeLogged += e =>
+    {
+        var t = e.TimeUtc.ToLocalTime();
+        string Clean(string x) => x.Replace("\r", " ").Replace("\n", " ");
+        var preview = e.RespText is { } rt ? "响应明文: " + Cut(Clean(rt), 72)
+                    : e.ReqText is { } qt ? "请求明文: " + Cut(Clean(qt), 72)
+                    : "";
+        Console.WriteLine($"{t:HH:mm:ss.fff} {e.Method,-7} {e.Status}  {Cut(e.Url, 60),-60} ↑{Fmt.Bytes(e.ReqBodyLen),9} ↓{Fmt.Bytes(e.RespBodyLen),9}  {preview}");
+    };
+    proxy.Start();
+
+    Console.WriteLine("MITM 调试代理运行 " + seconds + " 秒：http://127.0.0.1:" + proxy.Port);
+    Console.WriteLine("根证书：" + NetWatch.Core.Mitm.CertMaker.CaCerPath +
+        "（已安装到信任存储：" + NetWatch.Core.Mitm.CertMaker.IsRootCaInstalled() + "）");
+    Console.WriteLine("验证：curl -x http://127.0.0.1:" + proxy.Port + " --cacert " + NetWatch.Core.Mitm.CertMaker.CaCerPath + " https://目标站点/");
+    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    Console.WriteLine("\n结束。");
     return 0;
 }
 
