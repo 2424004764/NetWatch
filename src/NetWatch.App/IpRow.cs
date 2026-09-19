@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using NetWatch.Core;
 
 namespace NetWatch.App;
@@ -10,6 +12,7 @@ public sealed class IpRow : INotifyPropertyChanged
     private double _upSpeed, _downSpeed;
     private long _totalUp, _totalDown;
     private string _apps = "";
+    private List<string> _paths = new();
     private int _conns;
     private bool _blocked;
 
@@ -27,17 +30,19 @@ public sealed class IpRow : INotifyPropertyChanged
     public string TotalUpText => Fmt.Bytes(_totalUp);
     public string TotalDownText => Fmt.Bytes(_totalDown);
     public string AppsText => _apps;
+    public IReadOnlyList<string> Paths => _paths;
     public string ConnText => _conns == 0 ? "—" : _conns.ToString();
     public string ToolTipText => Ip + (_blocked ? "（已屏蔽）" : "");
 
     public void Apply(double deltaUp, double deltaDown, long totalUp, long totalDown,
-        string apps, int conns, bool blocked, double elapsedSeconds, DateTime nowUtc)
+        string apps, IReadOnlyList<string> paths, int conns, bool blocked, double elapsedSeconds, DateTime nowUtc)
     {
         _upSpeed = 0.5 * (deltaUp / elapsedSeconds) + 0.5 * _upSpeed;
         _downSpeed = 0.5 * (deltaDown / elapsedSeconds) + 0.5 * _downSpeed;
         _totalUp = totalUp;
         _totalDown = totalDown;
         _apps = apps;
+        _paths = paths.ToList();
         _conns = conns;
         _blocked = blocked;
         LastUpdatedUtc = nowUtc;

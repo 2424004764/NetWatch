@@ -209,7 +209,7 @@ public partial class MainWindow : Window
             if (r.TotalSent == 0 && r.TotalRecv == 0) continue;
 
             var names = new List<string>();
-            var paths = new List<string?>();
+            var paths = new List<string>();
             foreach (var pid in r.Pids)
             {
                 var info = _procs.Get(pid);
@@ -239,7 +239,7 @@ public partial class MainWindow : Window
                 _ipByAddr[r.Ip] = row;
                 _ipRows.Add(row);
             }
-            row.Apply(r.TickSent, r.TickRecv, r.TotalSent, r.TotalRecv, apps, connCount, blocked, elapsed, nowUtc);
+            row.Apply(r.TickSent, r.TickRecv, r.TotalSent, r.TotalRecv, apps, paths, connCount, blocked, elapsed, nowUtc);
         }
 
         for (int i = _ipRows.Count - 1; i >= 0; i--)
@@ -458,6 +458,47 @@ public partial class MainWindow : Window
         }
         if (win.StartupFailed) return;
         win.Show();
+    }
+
+    private void OnOpenIpLocation(object sender, RoutedEventArgs e)
+    {
+        if (IpList.SelectedItem is not IpRow row) return;
+        var paths = row.Paths
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (paths.Count == 0)
+        {
+            MessageBox.Show(this,
+                $"没有找到与 {row.Ip} 关联的可执行文件路径。\n\n系统进程或受保护进程可能无法读取文件位置。",
+                "文件位置", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        IEnumerable<string> selected = paths;
+        if (paths.Count > 1)
+        {
+            var names = string.Join("\n", paths.Select((p, i) => $"{i + 1}. {p}"));
+            if (MessageBox.Show(this,
+                    $"该 IP 关联了多个应用，将打开以下文件位置：\n\n{names}",
+                    "打开关联应用文件位置", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+                return;
+        }
+
+        foreach (var path in selected)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+                {
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error("打开目标 IP 关联文件位置失败：" + ex.Message);
+            }
+        }
     }
 
     private void OnOpenLocation(object sender, RoutedEventArgs e)
