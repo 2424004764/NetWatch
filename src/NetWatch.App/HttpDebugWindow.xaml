@@ -33,6 +33,12 @@
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="BtnCert" Content="① 安装调试根证书" Click="OnToggleCert" Margin="0,0,8,0"/>
                     <Button x:Name="BtnSysProxy" Content="② 开启系统代理" Click="OnToggleProxy" Margin="0,0,8,0"/>
+                    <TextBox x:Name="FilterBox" Width="230" Margin="0,0,8,0"
+                             VerticalContentAlignment="Center" Padding="6,3"
+                             Background="#FF1A1A1F" Foreground="#FFD8D8DE"
+                             BorderBrush="#FF3A3A44" CaretBrush="#FFD8D8DE"
+                             ToolTip="筛选：多个关键字空格分隔（全部满足）&#10;!开头 = 排除&#10;例：idaqimg&#10;例：POST !OPTIONS&#10;例：200 json"
+                             TextChanged="OnFilterChanged"/>
                     <ComboBox x:Name="ViewMode" Width="88" Margin="0,0,8,0"
                               SelectionChanged="OnViewModeChanged">
                         <ComboBoxItem Content="文本" IsSelected="True"/>

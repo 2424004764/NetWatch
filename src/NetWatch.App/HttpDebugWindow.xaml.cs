@@ -77,7 +77,42 @@ public partial class HttpDebugWindow : Window
         }
         while (Rows.Count > MaxRows) Rows.RemoveAt(0);
         if (added > 0) View.Refresh();
-        StatusText.Text = $"已捕获 {_count:N0} 个请求 · 代理端口 {_proxy.Port}" +
+        UpdateStatus();
+    }
+
+    private string _filter = "";
+
+    private void OnFilterChanged(object sender, TextChangedEventArgs e)
+    {
+        if (ReqGrid is null) return; // XAML 解析期保护
+        _filter = FilterBox.Text.Trim();
+        View.Filter = _filter.Length == 0 ? null : o => MatchesFilter((HttpRow)o);
+        View.Refresh();
+        UpdateStatus();
+    }
+
+    private bool MatchesFilter(HttpRow r)
+    {
+        foreach (var raw in _filter.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            bool neg = raw.StartsWith("!");
+            var term = (neg ? raw[1..] : raw).ToLowerInvariant();
+            if (term.Length == 0) continue;
+            bool hit = r.Method.ToLowerInvariant().Contains(term)
+                       || r.Url.ToLowerInvariant().Contains(term)
+                       || r.StatusText.Contains(term, StringComparison.OrdinalIgnoreCase)
+                       || r.ContentType.ToLowerInvariant().Contains(term);
+            if (neg == hit) return false; // 排除词命中，或必需词未命中
+        }
+        return true;
+    }
+
+    private void UpdateStatus()
+    {
+        int shown = ReqGrid.ItemsSource is null ? Rows.Count : View.Count;
+        StatusText.Text = $"已捕获 {_count:N0} 个请求" +
+                          (shown < Rows.Count ? $" · 筛选显示 {shown:N0}" : "") +
+                          $" · 代理端口 {_proxy.Port}" +
                           (SystemProxy.IsEnabled() ? " · 系统代理已接管" : "");
     }
 
@@ -174,6 +209,7 @@ public partial class HttpDebugWindow : Window
         Rows.Clear();
         View.Refresh();
         DetailBox.Text = "（选择上方请求查看完整内容）";
+        UpdateStatus();
     }
 
     private void OnClosed(object? sender, EventArgs e)
