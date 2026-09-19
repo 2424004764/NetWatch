@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using NetWatch.Core;
+using NetWatch.Core.Wfp;
 using WinForms = System.Windows.Forms;
 
 namespace NetWatch.App;
@@ -19,6 +20,7 @@ namespace NetWatch.App;
 public partial class MainWindow : Window
 {
     private readonly NetworkMonitor? _monitor;
+    private readonly BlockManager _blocks = new();
     private readonly ProcessInfoCache _procs = new();
     private readonly ObservableCollection<AppRow> _rows = new();
     private readonly Dictionary<string, AppRow> _byKey = new(StringComparer.OrdinalIgnoreCase);
@@ -56,6 +58,8 @@ public partial class MainWindow : Window
 
         _timer.Tick += OnTick;
         _timer.Start();
+        try { _blocks.Load(); }
+        catch (Exception ex) { Log.Error("屏蔽功能初始化失败：" + ex.Message); }
         Loaded += (_, _) => InitTray();
         Closed += Window_Closed;
     }
@@ -148,6 +152,8 @@ public partial class MainWindow : Window
         GrandUp.Text = Fmt.Bytes(_grandUp);
         GrandDown.Text = Fmt.Bytes(_grandDown);
         StatusText.Text = $"ETW 事件 {mon.EventCount:N0} · 活动连接 {conns.Count} · 已运行 {(DateTime.Now - _started).ToString(@"hh\:mm\:ss")}";
+        var active = _blocks.ActiveCount;
+        BtnBlockList.Content = active > 0 ? $"🚫 屏蔽管理 ({active})" : "🚫 屏蔽管理";
 
         if (_tray is not null)
         {
@@ -168,13 +174,24 @@ public partial class MainWindow : Window
     {
         if (AppList.SelectedItem is not AppRow row) return;
         var pids = row.Pids.ToHashSet();
-        var win = new ConnectionsWindow(row.Name, () =>
+        var win = new ConnectionsWindow(row.Name, row.Path, _blocks, () =>
         {
             try { return ConnectionHelper.GetConnections(pids); }
             catch { return new List<ConnectionInfo>(); }
         })
         { Owner = this };
         win.Show();
+    }
+
+    private void OnOpenBlockList(object sender, RoutedEventArgs e)
+    {
+        foreach (Window w in Application.Current.Windows)
+            if (w is BlockListWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        new BlockListWindow(_blocks) { Owner = this }.Show();
     }
 
     private void OnOpenLocation(object sender, RoutedEventArgs e)
@@ -194,6 +211,7 @@ public partial class MainWindow : Window
         if (_tray is not null) return;
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("显示主窗口", null, (_, _) => ShowMain());
+        menu.Items.Add("屏蔽管理", null, (_, _) => Dispatcher.Invoke(() => OnOpenBlockList(this, new RoutedEventArgs())));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("退出 NetWatch", null, (_, _) => ExitApp());
         _tray = new WinForms.NotifyIcon
@@ -239,6 +257,7 @@ public partial class MainWindow : Window
         _tray?.Dispose();
         _tray = null;
         _monitor?.Dispose();
+        _blocks.Dispose();
     }
 
     // ── 图标缓存 ─────────────────────────────────────────

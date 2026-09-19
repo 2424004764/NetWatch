@@ -36,26 +36,57 @@
             <Setter Property="Padding" Value="0,0,10,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="#FF33333C"/>
+            <Setter Property="Foreground" Value="#FFE8E8EC"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF45454F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF2B2B33"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <DockPanel>
-        <!-- 顶部：整机速率汇总 -->
+        <!-- 顶部：整机速率汇总 + 屏蔽管理入口 -->
         <Border DockPanel.Dock="Top" Background="#FF28282E" Padding="16,12,16,10">
-            <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="总上传 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TotalUpSpeed" Text="0 B/s" Foreground="#FFF0B25A"
-                               FontSize="16" FontWeight="SemiBold" Margin="0,0,22,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="总下载 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TotalDownSpeed" Text="0 B/s" Foreground="#FF7CC98B"
-                               FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <DockPanel>
+                <Button x:Name="BtnBlockList" DockPanel.Dock="Right" Content="🚫 屏蔽管理"
+                        Click="OnOpenBlockList" VerticalAlignment="Center"/>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="总上传 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TotalUpSpeed" Text="0 B/s" Foreground="#FFF0B25A"
+                                   FontSize="16" FontWeight="SemiBold" Margin="0,0,22,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="总下载 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TotalDownSpeed" Text="0 B/s" Foreground="#FF7CC98B"
+                                   FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Margin="0,5,0,0" FontSize="11.5" Foreground="#FF8A8A96">
+                        <Run Text="累计上传 "/><Run x:Name="GrandUp" Foreground="#FFC9C9D2"/>
+                        <Run Text=" / 累计下载 "/><Run x:Name="GrandDown" Foreground="#FFC9C9D2"/>
+                        <Run Text="（自 NetWatch 启动起统计）"/>
+                    </TextBlock>
                 </StackPanel>
-                <TextBlock Margin="0,5,0,0" FontSize="11.5" Foreground="#FF8A8A96">
-                    <Run Text="累计上传 "/><Run x:Name="GrandUp" Foreground="#FFC9C9D2"/>
-                    <Run Text=" / 累计下载 "/><Run x:Name="GrandDown" Foreground="#FFC9C9D2"/>
-                    <Run Text="（自 NetWatch 启动起统计）"/>
-                </TextBlock>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- 底部状态栏 -->

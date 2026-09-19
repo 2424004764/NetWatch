@@ -1,0 +1,67 @@
+<Window x:Class="NetWatch.App.BlockListWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="屏蔽管理 — NetWatch"
+        Height="440" Width="680" MinHeight="320" MinWidth="560"
+        Background="#FF202024" FontFamily="Segoe UI, Microsoft YaHei UI"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="#FF2A2A31"/>
+            <Setter Property="Foreground" Value="#FFB9B9C4"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderBrush" Value="#FF3A3A44"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+    </Window.Resources>
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#FF28282E" Padding="14,10">
+            <StackPanel>
+                <TextBlock Foreground="#FFF2F2F6" FontSize="13.5" FontWeight="SemiBold" Text="屏蔽规则"/>
+                <TextBlock x:Name="HintText" Margin="0,4,0,0" FontSize="11" Foreground="#FF8A8A96"
+                           Text="屏蔽 = 禁止指定程序（或全部程序）与目标 IP / 网段建立新的出站连接。规则随 NetWatch 启动自动生效。"/>
+            </StackPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="#FF1A1A1F" Padding="12,9">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="添加规则" Click="OnAdd" Margin="0,0,8,0"/>
+                <Button Content="启用 / 停用" Click="OnToggle" Margin="0,0,8,0"/>
+                <Button Content="删除规则" Click="OnRemove" Margin="0,0,8,0"/>
+                <Button Content="关闭" Click="OnClose"/>
+            </StackPanel>
+        </Border>
+        <DataGrid x:Name="BlockGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" CanUserAddRows="False"
+                  Background="Transparent" Foreground="#FFD8D8DE" RowBackground="Transparent"
+                  AlternatingRowBackground="#FF232329" GridLinesVisibility="None"
+                  BorderThickness="0" FontSize="12" SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="远程地址 / 网段" Binding="{Binding Remote}" Width="*"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="适用范围" Binding="{Binding Scope}" Width="230"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="70">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="4"/>
+                            <Setter Property="Foreground" Value="#FF7CC98B"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding State}" Value="已停用">
+                                    <Setter Property="Foreground" Value="#FF9A9AA4"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="创建时间" Binding="{Binding Created}" Width="150"
+                                    ElementStyle="{StaticResource CellText}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

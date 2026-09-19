@@ -26,14 +26,34 @@
                   HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
                   Background="Transparent" Foreground="#FFD8D8DE" RowBackground="Transparent"
                   AlternatingRowBackground="#FF232329" GridLinesVisibility="None"
-                  BorderThickness="0" FontSize="12" ClipboardCopyMode="IncludeHeader">
+                  BorderThickness="0" FontSize="12" ClipboardCopyMode="IncludeHeader"
+                  ContextMenuOpening="CtxMenu_Opening">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="屏蔽此 IP（仅此应用）" Click="OnBlockAppIp"/>
+                    <MenuItem Header="屏蔽此 IP（所有程序）" Click="OnBlockAllIp"/>
+                    <Separator/>
+                    <MenuItem Header="取消屏蔽此 IP" Click="OnUnblockIp"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="协议" Binding="{Binding Protocol}" Width="56"
                                     ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="本地地址" Binding="{Binding Local}" Width="230"
+                <DataGridTextColumn Header="本地地址" Binding="{Binding Local}" Width="225"
                                     ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="远程地址" Binding="{Binding Remote}" Width="*"
-                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="远程地址" Binding="{Binding RemoteText}" Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="4"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Blocked}" Value="True">
+                                    <Setter Property="Foreground" Value="#FFE07A7A"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
                 <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="90">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">

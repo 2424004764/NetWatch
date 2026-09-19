@@ -11,6 +11,7 @@
 - **按应用统计**上传速度、下载速度、累计上传、累计下载，按流量自动排序，最活跃的应用置顶
 - 同一应用的多个进程自动合并显示（如 Chrome、微信的多进程）
 - **双击应用**查看它当前的所有 TCP/UDP 连接：本地 / 远程地址、连接状态、PID（每 2 秒自动刷新）
+- **🚫 屏蔽 IP**（v1.1 新增）：在连接详情里右键某个远程 IP，即可禁止该应用（或所有程序）向它发送数据；支持 IP 和 CIDR 网段，可随时启停/删除，规则持久保存
 - 右键 → 打开文件位置
 - 顶部实时显示整机上传 / 下载速率与累计总量
 - 关闭窗口最小化到系统托盘，托盘提示实时显示整机速率
@@ -47,8 +48,12 @@ dotnet publish src/NetWatch.App -c Release -r win-x64 --self-contained true -p:P
 仓库同时附带一个无界面版本，便于脚本化验证：
 
 ```bash
-netwatch-cli 20      # 监控 20 秒，每 2 秒打印一次有流量的进程
+netwatch-cli 20       # 监控 20 秒，每 2 秒打印一次有流量的进程
 netwatch-cli --events # 列出内核网络事件（诊断用）
+netwatch-cli --block 1.2.3.4            # 屏蔽所有程序访问 1.2.3.4
+netwatch-cli --block 10.0.0.0/24 --app "C:\path\app.exe"  # 仅屏蔽某个程序
+netwatch-cli --unblock 1.2.3.4          # 解除屏蔽
+netwatch-cli --blocks                  # 查看屏蔽列表
 ```
 
 输出示例：
@@ -74,7 +79,18 @@ netwatch-cli --events # 列出内核网络事件（诊断用）
 按 PID 累加字节数 ──► 每秒取增量算速率 ──► WPF 界面展示
         │
         └─► 连接列表：GetExtendedTcpTable / GetExtendedUdpTable（IP Helper API）
+
+屏蔽：WFP（Windows 筛选平台）自建子层 + BLOCK 过滤器
+        └─► 在 ALE_AUTH_CONNECT 层按「程序 + 远程 IP/网段」拦截新建连接，
+            无需开启 Windows 防火墙，不装驱动；过滤器不带 PERSISTENT 标志
 ```
+
+**屏蔽规则说明**
+
+- 只拦**新建**的连接；已建立的旧连接会继续到断开为止，屏蔽后重启目标程序即完全阻断
+- 规则保存在 `%APPDATA%\NetWatch\blocks.json`，NetWatch 启动时自动重建到 WFP
+- NetWatch 退出后已生效的屏蔽会继续生效；**系统重启后**若未启动 NetWatch 则不再恢复
+- 想彻底清掉所有屏蔽：在 NetWatch 里删除全部规则（或重启系统）
 
 不安装驱动、不注入 DLL、不修改系统网络栈，全部使用 Windows 原生跟踪机制，关闭程序后不留任何残留。
 
@@ -83,7 +99,7 @@ netwatch-cli --events # 列出内核网络事件（诊断用）
 ```
 NetWatch/
 ├── src/
-│   ├── NetWatch.Core/   # 采集核心：ETW 按进程统计流量 + 连接枚举（P/Invoke）
+│   ├── NetWatch.Core/   # 采集核心：ETW 按进程统计流量 + 连接枚举 + WFP 屏蔽（P/Invoke）
 │   ├── NetWatch.App/    # WPF 桌面界面
 │   └── NetWatch.Cli/    # 命令行验证工具
 ├── docs/                # 截图等文档资源
