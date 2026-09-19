@@ -378,6 +378,19 @@ public partial class MainWindow : Window
             try { Clipboard.SetText(row.Ip); } catch { }
     }
 
+    private void OnCapturePackets(object sender, RoutedEventArgs e)
+    {
+        if (IpList.SelectedItem is not IpRow row) return;
+        try
+        {
+            new CaptureWindow(row.Ip) { Owner = this }.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "打开抓包失败：" + ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void OnOpenLocation(object sender, RoutedEventArgs e)
     {
         if (AppList.SelectedItem is not AppRow row || string.IsNullOrEmpty(row.Path)) return;

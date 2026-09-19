@@ -208,6 +208,7 @@
                   Visibility="Collapsed" MouseDoubleClick="IpList_MouseDoubleClick">
             <ListView.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="查看该 IP 的数据包" Click="OnCapturePackets"/>
                     <MenuItem Header="屏蔽此 IP（所有程序）" Click="OnBlockIpGlobal"/>
                     <MenuItem Header="取消屏蔽此 IP" Click="OnUnblockIpRow"/>
                     <Separator/>

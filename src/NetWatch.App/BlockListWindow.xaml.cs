@@ -86,4 +86,21 @@ public partial class BlockListWindow : Window
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    private void OnCapturePackets(object sender, System.Windows.Input.MouseButtonEventArgs e) => OpenCapture();
+
+    private void OnCapturePacketsMenu(object sender, RoutedEventArgs e) => OpenCapture();
+
+    private void OpenCapture()
+    {
+        if (BlockGrid.SelectedItem is not BlockRow row) return;
+        try
+        {
+            new CaptureWindow(row.Entry.Remote) { Owner = this }.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "打开抓包失败：" + ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 }

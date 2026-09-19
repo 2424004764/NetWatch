@@ -24,6 +24,12 @@ if (args.Contains("--remotes"))
     return RunRemotesView(args);
 }
 
+// 抓包视图：--sniff <ip|网段> [秒数] —— 打印发往/来自该 IP 的数据包内容预览
+if (args.Contains("--sniff"))
+{
+    return RunSniffView(args);
+}
+
 int seconds = args.Length > 0 && int.TryParse(args[0], out var s) ? s : 15;
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.WriteLine($"NetWatch CLI — 监听 {seconds} 秒（需要管理员权限）");
@@ -119,6 +125,36 @@ static string? ArgAfter(string[] args, string key)
 {
     var i = Array.IndexOf(args, key);
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+}
+
+static int RunSniffView(string[] args)
+{
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    var target = ArgAfter(args, "--sniff");
+    if (string.IsNullOrEmpty(target))
+    {
+        Console.WriteLine("用法：netwatch-cli --sniff <IP|网段> [秒数，默认 15]");
+        return 1;
+    }
+    int seconds = args.Length > 1 && int.TryParse(args[^1], out var v) && !args[^1].Equals(target) ? v : 15;
+
+    PacketSniffer sniffer;
+    try { sniffer = new PacketSniffer(new[] { target }); sniffer.Start(); }
+    catch (Exception ex) { Console.WriteLine("抓包启动失败：" + ex.Message); return 1; }
+    using var s = sniffer;
+
+    long count = 0;
+    sniffer.PacketReceived += p =>
+    {
+        Interlocked.Increment(ref count);
+        var t = p.TimeUtc.ToLocalTime();
+        Console.WriteLine($"{t:HH:mm:ss.fff} {(p.Outbound ? "↑发" : "↓收")} {p.RemoteIp}:{p.RemotePort,-5} {p.Protocol} {p.PayloadLen,5}B  {Cut(PayloadDescribe.Preview(p.Payload, 90), 92)}");
+    };
+
+    Console.WriteLine($"抓包 {seconds} 秒：{target}（{sniffer.InterfaceCount} 个监听点）…");
+    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    Console.WriteLine($"\n结束，共 {Interlocked.Read(ref count)} 个包。");
+    return 0;
 }
 
 static int RunRemotesView(string[] args)

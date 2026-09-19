@@ -39,7 +39,13 @@
                   HeadersVisibility="Column" CanUserAddRows="False"
                   Background="Transparent" Foreground="#FFD8D8DE" RowBackground="Transparent"
                   AlternatingRowBackground="#FF232329" GridLinesVisibility="None"
-                  BorderThickness="0" FontSize="12" SelectionMode="Single">
+                  BorderThickness="0" FontSize="12" SelectionMode="Single"
+                  MouseDoubleClick="OnCapturePackets">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="查看该地址的数据包" Click="OnCapturePacketsMenu"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="远程地址 / 网段" Binding="{Binding Remote}" Width="*"
                                     ElementStyle="{StaticResource CellText}"/>
