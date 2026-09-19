@@ -9,7 +9,8 @@
     <AssemblyName>NetWatch</AssemblyName>
     <RootNamespace>NetWatch.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.7.2</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>1.7.3</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\NetWatch.Core\NetWatch.Core.csproj" />
