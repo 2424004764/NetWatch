@@ -286,7 +286,7 @@ public partial class MainWindow : Window
                 existing.Activate();
                 return;
             }
-        new HttpDebugWindow { Owner = this }.Show();
+        new HttpDebugWindow().Show(); // 独立窗口：避免 Owner 机制把主窗口压在下面
     }
 
     private void OnOpenBlockList(object sender, RoutedEventArgs e)
@@ -297,7 +297,7 @@ public partial class MainWindow : Window
                 existing.Activate();
                 return;
             }
-        new BlockListWindow(_blocks) { Owner = this }.Show();
+        new BlockListWindow(_blocks).Show();
     }
 
     // ── 搜索 ─────────────────────────────────────────────
@@ -437,7 +437,6 @@ public partial class MainWindow : Window
             return;
         }
         if (win.StartupFailed) return;
-        win.Owner = this;
         win.Show();
     }
 

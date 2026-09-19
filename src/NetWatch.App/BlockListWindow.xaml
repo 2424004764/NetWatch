@@ -4,7 +4,7 @@
         Title="屏蔽管理 — NetWatch"
         Height="440" Width="680" MinHeight="320" MinWidth="560"
         Background="#FF202024" FontFamily="Segoe UI, Microsoft YaHei UI"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <Style TargetType="{x:Type DataGridColumnHeader}">
             <Setter Property="Background" Value="#FF2A2A31"/>

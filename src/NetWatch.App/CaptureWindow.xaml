@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Height="680" Width="980" MinHeight="420" MinWidth="680"
         Background="#FF202024" FontFamily="Segoe UI, Microsoft YaHei UI"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <Style TargetType="{x:Type DataGridColumnHeader}">
             <Setter Property="Background" Value="#FF2A2A31"/>
