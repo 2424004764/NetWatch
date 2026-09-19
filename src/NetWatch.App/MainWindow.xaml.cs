@@ -289,6 +289,43 @@ public partial class MainWindow : Window
         new BlockListWindow(_blocks) { Owner = this }.Show();
     }
 
+    // ── 搜索 ─────────────────────────────────────────────
+
+    private string _searchText = "";
+
+    private void OnSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SearchBox is null) return; // XAML 解析期保护
+        _searchText = SearchBox.Text.Trim();
+        ApplySearchFilter();
+    }
+
+    private void SearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape) SearchBox.Clear();
+    }
+
+    private void ApplySearchFilter()
+    {
+        var appView = (ListCollectionView)CollectionViewSource.GetDefaultView(_rows);
+        var ipView = (ListCollectionView)CollectionViewSource.GetDefaultView(_ipRows);
+        if (_searchText.Length == 0)
+        {
+            appView.Filter = null;
+            ipView.Filter = null;
+        }
+        else
+        {
+            appView.Filter = o => o is AppRow a && (Hit(a.Name) || Hit(a.Path));
+            ipView.Filter = o => o is IpRow r && (Hit(r.Ip) || Hit(r.AppsText));
+        }
+        appView.Refresh();
+        ipView.Refresh();
+    }
+
+    private bool Hit(string? s)
+        => s is not null && s.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
     // ── 视图切换 ─────────────────────────────────────────
 
     private void OnViewApp(object sender, RoutedEventArgs e)

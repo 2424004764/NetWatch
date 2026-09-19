@@ -124,6 +124,25 @@
                                      Checked="OnViewIp"/>
                     </StackPanel>
                 </Border>
+                <Grid DockPanel.Dock="Right" Width="215" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <TextBox x:Name="SearchBox" Height="32" Padding="9,0" FontSize="12.5"
+                             Background="#FF26262D" BorderBrush="#FF3A3A44" BorderThickness="1"
+                             Foreground="#FFF2F2F6" CaretBrush="White" VerticalContentAlignment="Center"
+                             TextChanged="OnSearchChanged" KeyDown="SearchBox_KeyDown"/>
+                    <TextBlock Text="🔍 搜索应用或 IP…" IsHitTestVisible="False" Foreground="#FF6A6A74"
+                               FontSize="12" VerticalAlignment="Center" Margin="11,0,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="总上传 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
