@@ -94,13 +94,15 @@ public partial class BlockListWindow : Window
     private void OpenCapture()
     {
         if (BlockGrid.SelectedItem is not BlockRow row) return;
-        try
-        {
-            new CaptureWindow(row.Entry.Remote) { Owner = this }.Show();
-        }
+        CaptureWindow win;
+        try { win = new CaptureWindow(row.Entry.Remote); }
         catch (Exception ex)
         {
             MessageBox.Show(this, "打开抓包失败：" + ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
+        if (win.StartupFailed) return;
+        win.Owner = this;
+        win.Show();
     }
 }

@@ -381,14 +381,16 @@ public partial class MainWindow : Window
     private void OnCapturePackets(object sender, RoutedEventArgs e)
     {
         if (IpList.SelectedItem is not IpRow row) return;
-        try
-        {
-            new CaptureWindow(row.Ip) { Owner = this }.Show();
-        }
+        CaptureWindow win;
+        try { win = new CaptureWindow(row.Ip); }
         catch (Exception ex)
         {
             MessageBox.Show(this, "打开抓包失败：" + ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
+        if (win.StartupFailed) return;
+        win.Owner = this;
+        win.Show();
     }
 
     private void OnOpenLocation(object sender, RoutedEventArgs e)

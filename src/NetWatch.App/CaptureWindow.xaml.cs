@@ -26,13 +26,16 @@ public partial class CaptureWindow : Window
         public PacketInfo Packet = null!;
     }
 
-    private readonly PacketSniffer _sniffer;
+    private readonly PacketSniffer? _sniffer;
     private readonly ConcurrentQueue<PacketInfo> _queue = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool _paused;
     private bool _hexMode;
     private int _intDirection; // 0=全部 1=仅上行 2=仅下行
     private long _captured;
+
+    /// <summary>构造失败（抓包引擎未启动）时为 true，调用方不应再 Show()。</summary>
+    public bool StartupFailed { get; private set; }
 
     public CaptureWindow(string remote)
     {
@@ -47,16 +50,16 @@ public partial class CaptureWindow : Window
         }
         catch (Exception ex)
         {
+            StartupFailed = true;
             MessageBox.Show(this, "抓包启动失败：" + ex.Message, "NetWatch",
                 MessageBoxButton.OK, MessageBoxImage.Error);
-            Close();
             return;
         }
 
         _sniffer.PacketReceived += p => _queue.Enqueue(p);
         _timer.Tick += (_, _) => DrainQueue();
         _timer.Start();
-        Closed += (_, _) => { _timer.Stop(); _sniffer.Dispose(); };
+        Closed += (_, _) => { _timer.Stop(); _sniffer?.Dispose(); };
     }
 
     private List<PacketRow> Rows { get; } = new();
@@ -66,6 +69,7 @@ public partial class CaptureWindow : Window
 
     private void DrainQueue()
     {
+        if (_sniffer is null || StartupFailed) return;
         if (_paused) { _queue.Clear(); return; }
         if (PacketGrid.ItemsSource is null) PacketGrid.ItemsSource = Rows;
 
@@ -108,6 +112,7 @@ public partial class CaptureWindow : Window
 
     private void OnDirFilterChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (PacketGrid is null) return; // XAML 解析期 ComboBox IsSelected=True 会提前触发
         if (DirFilter.SelectedIndex >= 0) _intDirection = DirFilter.SelectedIndex;
         ApplyFilter();
     }
@@ -125,6 +130,7 @@ public partial class CaptureWindow : Window
 
     private void OnViewModeChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (PacketGrid is null) return; // XAML 解析期提前触发
         if (ViewMode.SelectedIndex == 1) _hexMode = true;
         else if (ViewMode.SelectedIndex == 0) _hexMode = false;
         RenderSelected();
@@ -134,7 +140,7 @@ public partial class CaptureWindow : Window
 
     private void RenderSelected()
     {
-        if (PacketGrid.SelectedItem is not PacketRow row) return;
+        if (PacketGrid?.SelectedItem is not PacketRow row) return;
         DetailBox.Text = _hexMode
             ? PayloadDescribe.HexDump(row.Packet.Payload)
             : PayloadDescribe.FullText(row.Packet.Payload);
