@@ -1,0 +1,15 @@
+* text=auto
+
+# 源码统一 LF
+*.cs text
+*.xaml text
+*.csproj text
+*.sln text
+*.md text
+*.yml text
+*.manifest text
+
+# 二进制文件
+*.png binary
+*.ico binary
+*.exe binary

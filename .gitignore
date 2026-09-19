@@ -1,0 +1,24 @@
+# 构建产物
+bin/
+obj/
+publish/
+publish-selfcontained/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+*.DotSettings.user
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# 操作系统
+Thumbs.db
+.DS_Store

@@ -1,0 +1,59 @@
+<Window x:Class="NetWatch.App.ConnectionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Height="500" Width="800" MinHeight="320" MinWidth="560"
+        Background="#FF202024" FontFamily="Segoe UI, Microsoft YaHei UI"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="#FF2A2A31"/>
+            <Setter Property="Foreground" Value="#FFB9B9C4"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderBrush" Value="#FF3A3A44"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+    </Window.Resources>
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#FF28282E" Padding="14,10">
+            <TextBlock x:Name="HeaderText" Foreground="#FFF2F2F6" FontSize="13.5" FontWeight="SemiBold"/>
+        </Border>
+        <DataGrid x:Name="ConnGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" CanUserAddRows="False" SelectionMode="Single"
+                  Background="Transparent" Foreground="#FFD8D8DE" RowBackground="Transparent"
+                  AlternatingRowBackground="#FF232329" GridLinesVisibility="None"
+                  BorderThickness="0" FontSize="12" ClipboardCopyMode="IncludeHeader">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="协议" Binding="{Binding Protocol}" Width="56"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="本地地址" Binding="{Binding Local}" Width="230"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="远程地址" Binding="{Binding Remote}" Width="*"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="4"/>
+                            <Setter Property="Foreground" Value="#FF9A9AA4"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding State}" Value="已建立">
+                                    <Setter Property="Foreground" Value="#FF7CC98B"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding State}" Value="监听">
+                                    <Setter Property="Foreground" Value="#FF7FA8D9"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="64"
+                                    ElementStyle="{StaticResource CellText}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>
