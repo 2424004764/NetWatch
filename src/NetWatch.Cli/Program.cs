@@ -18,6 +18,12 @@ if (args.Contains("--blocks") || args.Contains("--block") || args.Contains("--un
     return RunBlockCommand(args);
 }
 
+// 目标 IP 视图：--remotes [秒数] —— 输出每个远程 IP 的收发流量
+if (args.Contains("--remotes"))
+{
+    return RunRemotesView(args);
+}
+
 int seconds = args.Length > 0 && int.TryParse(args[0], out var s) ? s : 15;
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.WriteLine($"NetWatch CLI — 监听 {seconds} 秒（需要管理员权限）");
@@ -113,6 +119,49 @@ static string? ArgAfter(string[] args, string key)
 {
     var i = Array.IndexOf(args, key);
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+}
+
+static int RunRemotesView(string[] args)
+{
+    var secArg = ArgAfter(args, "--remotes");
+    int seconds = secArg != null && int.TryParse(secArg, out var v) ? v : 15;
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    Console.WriteLine($"NetWatch CLI · 目标 IP 视图 — 监听 {seconds} 秒（需要管理员权限）");
+
+    NetworkMonitor mon;
+    try { mon = NetworkMonitor.Start(); }
+    catch (Exception ex) { Console.WriteLine("启动失败：" + ex.Message); return 1; }
+    using var monitor = mon;
+    var procs = new ProcessInfoCache();
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var last = 0.0;
+
+    while (sw.Elapsed.TotalSeconds < seconds)
+    {
+        System.Threading.Thread.Sleep(3000);
+        double elapsed = sw.Elapsed.TotalSeconds - last;
+        last = sw.Elapsed.TotalSeconds;
+        if (elapsed <= 0) elapsed = 3;
+        var remotes = monitor.SnapshotRemotes();
+        Console.WriteLine($"── {DateTime.Now:HH:mm:ss}  活动远程 IP {remotes.Count} 个");
+        foreach (var r in remotes.Where(r => r.TickSent + r.TickRecv > 0)
+                                 .OrderByDescending(r => r.TickSent + r.TickRecv)
+                                 .Take(12))
+        {
+            var apps = string.Join(",", r.Pids.Select(p => procs.Get(p).Name).Distinct().Take(3));
+            Console.WriteLine($"   {Cut(r.Ip, 40),-40} ↑ {Fmt.Bytes(r.TickSent / elapsed),9}/s   ↓ {Fmt.Bytes(r.TickRecv / elapsed),9}/s   {Cut(apps, 34)}");
+        }
+    }
+
+    Console.WriteLine("\n══ 按远程 IP 累计（前 20 名）══");
+    foreach (var r in monitor.SnapshotRemotes(false)
+                             .OrderByDescending(r => r.TotalSent + r.TotalRecv)
+                             .Take(20))
+    {
+        var apps = string.Join(",", r.Pids.Select(p => procs.Get(p).Name).Distinct().Take(3));
+        Console.WriteLine($"   {Cut(r.Ip, 40),-40} 累计 ↑ {Fmt.Bytes(r.TotalSent),10}   ↓ {Fmt.Bytes(r.TotalRecv),10}   {Cut(apps, 30)}");
+    }
+    return 0;
 }
 
 static void DumpEvents()

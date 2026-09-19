@@ -56,17 +56,7 @@ public partial class ConnectionsWindow : Window
     }
 
     /// <summary>"1.2.3.4:443" / "[::1]:443" → IP 部分；"*" 或空返回 null。</summary>
-    private static string? ExtractIp(string? remote)
-    {
-        if (string.IsNullOrEmpty(remote) || remote == "*") return null;
-        if (remote.StartsWith('['))
-        {
-            var end = remote.IndexOf(']');
-            return end > 0 ? remote[1..end] : null;
-        }
-        var colon = remote.LastIndexOf(':');
-        return colon > 0 ? remote[..colon] : remote;
-    }
+    private static string? ExtractIp(string? remote) => ConnectionHelper.ExtractIp(remote);
 
     private ConnRow? SelectedConn => ConnGrid.SelectedItem as ConnRow;
 

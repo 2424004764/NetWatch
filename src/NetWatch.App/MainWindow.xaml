@@ -37,6 +37,30 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
+        <Style x:Key="Seg" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#FF9A9AA4"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3" Padding="12,6" Margin="1,0">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF2F2F38"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3A3F55"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="{x:Type Button}">
             <Setter Property="Background" Value="#FF33333C"/>
             <Setter Property="Foreground" Value="#FFE8E8EC"/>
@@ -66,11 +90,20 @@
     </Window.Resources>
 
     <DockPanel>
-        <!-- 顶部：整机速率汇总 + 屏蔽管理入口 -->
+        <!-- 顶部：整机速率汇总 + 视图切换 + 屏蔽管理入口 -->
         <Border DockPanel.Dock="Top" Background="#FF28282E" Padding="16,12,16,10">
             <DockPanel>
                 <Button x:Name="BtnBlockList" DockPanel.Dock="Right" Content="🚫 屏蔽管理"
                         Click="OnOpenBlockList" VerticalAlignment="Center"/>
+                <Border DockPanel.Dock="Right" Background="#FF26262D" CornerRadius="4"
+                        Padding="2" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="RbViewApp" Style="{StaticResource Seg}" Content="应用"
+                                     IsChecked="True" Checked="OnViewApp"/>
+                        <RadioButton x:Name="RbViewIp" Style="{StaticResource Seg}" Content="目标 IP"
+                                     Checked="OnViewIp"/>
+                    </StackPanel>
+                </Border>
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="总上传 " Foreground="#FF9A9AA4" FontSize="14" VerticalAlignment="Center"/>
@@ -100,7 +133,8 @@
             </DockPanel>
         </Border>
 
-        <!-- 主列表 -->
+        <!-- 主区域：应用视图 / 目标 IP 视图 -->
+        <Grid>
         <ListView x:Name="AppList" Background="Transparent" BorderThickness="0"
                   Padding="6,4,10,8" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                   MouseDoubleClick="AppList_MouseDoubleClick">
@@ -167,5 +201,70 @@
                 </GridView>
             </ListView.View>
         </ListView>
+
+        <!-- 目标 IP 视图：数据发给了谁 -->
+        <ListView x:Name="IpList" Background="Transparent" BorderThickness="0"
+                  Padding="6,4,10,8" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  Visibility="Collapsed" MouseDoubleClick="IpList_MouseDoubleClick">
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="屏蔽此 IP（所有程序）" Click="OnBlockIpGlobal"/>
+                    <MenuItem Header="取消屏蔽此 IP" Click="OnUnblockIpRow"/>
+                    <Separator/>
+                    <MenuItem Header="复制 IP" Click="OnCopyIp"/>
+                </ContextMenu>
+            </ListView.ContextMenu>
+            <ListView.View>
+                <GridView AllowsColumnReorder="False">
+                    <GridViewColumn Header="远程 IP" Width="215">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding IpText}" Foreground="#FFF2F2F6"
+                                           FontSize="12.5" VerticalAlignment="Center"
+                                           ToolTip="{Binding ToolTipText}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="↑ 上传速度" Width="108">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource NumCell}" Text="{Binding UpSpeedText}" Foreground="#FFF0B25A"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="↓ 下载速度" Width="108">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource NumCell}" Text="{Binding DownSpeedText}" Foreground="#FF7CC98B"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="累计上传" Width="92">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource NumCell}" Text="{Binding TotalUpText}" Foreground="#FFC9C9D2"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="累计下载" Width="92">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource NumCell}" Text="{Binding TotalDownText}" Foreground="#FFC9C9D2"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="通信的应用" Width="240">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding AppsText}" Foreground="#FF9A9AA4"
+                                           FontSize="11.5" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </Grid>
     </DockPanel>
 </Window>

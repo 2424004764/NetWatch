@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private readonly ProcessInfoCache _procs = new();
     private readonly ObservableCollection<AppRow> _rows = new();
     private readonly Dictionary<string, AppRow> _byKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ObservableCollection<IpRow> _ipRows = new();
+    private readonly Dictionary<string, IpRow> _ipByAddr = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -41,6 +43,10 @@ public partial class MainWindow : Window
         var view = (ListCollectionView)CollectionViewSource.GetDefaultView(_rows);
         view.CustomSort = Comparer<object>.Create((a, b) => ((AppRow)b).SortScore.CompareTo(((AppRow)a).SortScore));
         AppList.ItemsSource = view;
+
+        var ipView = (ListCollectionView)CollectionViewSource.GetDefaultView(_ipRows);
+        ipView.CustomSort = Comparer<object>.Create((a, b) => ((IpRow)b).SortScore.CompareTo(((IpRow)a).SortScore));
+        IpList.ItemsSource = ipView;
 
         try
         {
@@ -144,6 +150,8 @@ public partial class MainWindow : Window
             _byKey.Remove(row.Key);
         }
 
+        UpdateIpRows(mon.SnapshotRemotes(), conns, elapsed, nowUtc);
+
         double upSpeed = tickUp / elapsed, downSpeed = tickDown / elapsed;
         _grandUp += tickUp;
         _grandDown += tickDown;
@@ -162,6 +170,93 @@ public partial class MainWindow : Window
         }
 
         ((ListCollectionView)CollectionViewSource.GetDefaultView(_rows)).Refresh();
+    }
+
+    /// <summary>目标 IP 视图：按远程地址聚合，显示各 IP 的收发速率/累计值与通信应用。</summary>
+    private void UpdateIpRows(List<RemoteSnapshot> remotes, List<ConnectionInfo> conns,
+        double elapsed, DateTime nowUtc)
+    {
+        var connByIp = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in conns)
+        {
+            var ip = ConnectionHelper.ExtractIp(c.Remote);
+            if (ip != null)
+                connByIp[ip] = connByIp.TryGetValue(ip, out var n) ? n + 1 : 1;
+        }
+
+        foreach (var r in remotes)
+        {
+            if (r.TotalSent == 0 && r.TotalRecv == 0) continue;
+
+            var names = new List<string>();
+            var paths = new List<string?>();
+            foreach (var pid in r.Pids)
+            {
+                var info = _procs.Get(pid);
+                if (!names.Contains(info.Name)) names.Add(info.Name);
+                if (info.Path != null && !paths.Contains(info.Path)) paths.Add(info.Path);
+            }
+            var apps = names.Count == 0 ? "—" : string.Join(", ", names.Take(4)) + (names.Count > 4 ? $" 等 {names.Count} 项" : "");
+            connByIp.TryGetValue(r.Ip, out var connCount);
+
+            bool blocked = false;
+            if (System.Net.IPAddress.TryParse(r.Ip, out var addr))
+            {
+                foreach (var b in _blocks.Entries)
+                {
+                    if (!b.Enabled || !RemoteCovers(b.Remote, addr)) continue;
+                    if (b.AppPath == null || paths.Any(p => string.Equals(p, b.AppPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!_ipByAddr.TryGetValue(r.Ip, out var row))
+            {
+                row = new IpRow(r.Ip);
+                _ipByAddr[r.Ip] = row;
+                _ipRows.Add(row);
+            }
+            row.Apply(r.TickSent, r.TickRecv, r.TotalSent, r.TotalRecv, apps, connCount, blocked, elapsed, nowUtc);
+        }
+
+        for (int i = _ipRows.Count - 1; i >= 0; i--)
+        {
+            var row = _ipRows[i];
+            if ((nowUtc - row.LastUpdatedUtc).TotalSeconds > 90 && row.SortScore < 1)
+            {
+                _ipRows.RemoveAt(i);
+                _ipByAddr.Remove(row.Ip);
+            }
+        }
+
+        ((ListCollectionView)CollectionViewSource.GetDefaultView(_ipRows)).Refresh();
+    }
+
+    private static bool RemoteCovers(string remote, System.Net.IPAddress ip)
+    {
+        try
+        {
+            var slash = remote.IndexOf('/');
+            var net = System.Net.IPAddress.Parse(slash < 0 ? remote : remote[..slash]);
+            if (net.AddressFamily != ip.AddressFamily) return false;
+            if (slash < 0) return net.Equals(ip);
+            int prefix = int.Parse(remote[(slash + 1)..]);
+            var a = net.GetAddressBytes();
+            var b = ip.GetAddressBytes();
+            int full = prefix / 8, rem = prefix % 8;
+            for (int i = 0; i < full; i++)
+                if (a[i] != b[i]) return false;
+            if (rem > 0)
+            {
+                int m = 0xFF << (8 - rem);
+                if ((a[full] & m) != (b[full] & m)) return false;
+            }
+            return true;
+        }
+        catch { return false; }
     }
 
     // ── 交互 ─────────────────────────────────────────────
@@ -192,6 +287,95 @@ public partial class MainWindow : Window
                 return;
             }
         new BlockListWindow(_blocks) { Owner = this }.Show();
+    }
+
+    // ── 视图切换 ─────────────────────────────────────────
+
+    private void OnViewApp(object sender, RoutedEventArgs e)
+    {
+        if (AppList is null || IpList is null) return; // XAML 解析期 IsChecked=True 会提前触发
+        AppList.Visibility = Visibility.Visible;
+        IpList.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnViewIp(object sender, RoutedEventArgs e)
+    {
+        if (AppList is null || IpList is null) return;
+        AppList.Visibility = Visibility.Collapsed;
+        IpList.Visibility = Visibility.Visible;
+    }
+
+    // ── 目标 IP 视图交互 ─────────────────────────────────
+
+    private void IpList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (IpList.SelectedItem is not IpRow row) return;
+        var ip = row.Ip;
+        var win = new ConnectionsWindow($"→ {ip}", null, _blocks, () =>
+        {
+            try
+            {
+                return ConnectionHelper.GetConnections()
+                    .Where(c => string.Equals(ConnectionHelper.ExtractIp(c.Remote), ip, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            catch { return new List<ConnectionInfo>(); }
+        })
+        { Owner = this };
+        win.Show();
+    }
+
+    private void OnBlockIpGlobal(object sender, RoutedEventArgs e)
+    {
+        if (IpList.SelectedItem is not IpRow row) return;
+        if (MessageBox.Show(this,
+                $"确定禁止所有程序与 {row.Ip} 建立新的出站连接？\n\n（已建立的旧连接不受影响，重启相关程序后完全阻断）",
+                "屏蔽确认", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+        try
+        {
+            _blocks.Add(row.Ip, null);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "屏蔽失败", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnUnblockIpRow(object sender, RoutedEventArgs e)
+    {
+        if (IpList.SelectedItem is not IpRow row) return;
+        if (!System.Net.IPAddress.TryParse(row.Ip, out var addr))
+        {
+            MessageBox.Show(this, "无法解析该地址。", "NetWatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        var toRemove = _blocks.Entries
+            .Where(b => b.Enabled && RemoteCovers(b.Remote, addr))
+            .ToList();
+        if (toRemove.Count == 0)
+        {
+            MessageBox.Show(this, $"没有找到覆盖 {row.Ip} 的屏蔽规则。", "NetWatch", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var detail = string.Join("\n", toRemove.Select(b => $"{b.Remote}（{b.AppPath ?? "所有程序"}）"));
+        if (MessageBox.Show(this, $"确定移除以下屏蔽规则？\n\n{detail}", "取消屏蔽",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+        try
+        {
+            foreach (var b in toRemove) _blocks.Remove(b);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "操作失败", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnCopyIp(object sender, RoutedEventArgs e)
+    {
+        if (IpList.SelectedItem is IpRow row)
+            try { Clipboard.SetText(row.Ip); } catch { }
     }
 
     private void OnOpenLocation(object sender, RoutedEventArgs e)

@@ -53,6 +53,19 @@ public static class ConnectionHelper
     [DllImport("iphlpapi.dll")]
     private static extern int GetExtendedUdpTable(IntPtr pUdpTable, ref int pdwSize, bool bOrder, int ulAf, int tableClass, int reserved);
 
+    /// <summary>"1.2.3.4:443" / "[::1]:443" → IP 部分；"*" 或空返回 null。</summary>
+    public static string? ExtractIp(string? remote)
+    {
+        if (string.IsNullOrEmpty(remote) || remote == "*") return null;
+        if (remote.StartsWith('['))
+        {
+            var end = remote.IndexOf(']');
+            return end > 0 ? remote[1..end] : null;
+        }
+        var colon = remote.LastIndexOf(':');
+        return colon > 0 ? remote[..colon] : remote;
+    }
+
     public static List<ConnectionInfo> GetConnections(HashSet<int>? filterPids = null)
     {
         var list = new List<ConnectionInfo>(128);

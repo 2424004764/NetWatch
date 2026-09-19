@@ -11,6 +11,7 @@
 - **按应用统计**上传速度、下载速度、累计上传、累计下载，按流量自动排序，最活跃的应用置顶
 - 同一应用的多个进程自动合并显示（如 Chrome、微信的多进程）
 - **双击应用**查看它当前的所有 TCP/UDP 连接：本地 / 远程地址、连接状态、PID（每 2 秒自动刷新）
+- **目标 IP 视图**（v1.2 新增）：一键切换，按远程地址聚合——"数据都发给了谁、各发了多少"，附带通信应用名；右键可直接屏蔽该 IP，双击查看与它的连接
 - **🚫 屏蔽 IP**（v1.1 新增）：在连接详情里右键某个远程 IP，即可禁止该应用（或所有程序）向它发送数据；支持 IP 和 CIDR 网段，可随时启停/删除，规则持久保存
 - 右键 → 打开文件位置
 - 顶部实时显示整机上传 / 下载速率与累计总量
@@ -54,6 +55,7 @@ netwatch-cli --block 1.2.3.4            # 屏蔽所有程序访问 1.2.3.4
 netwatch-cli --block 10.0.0.0/24 --app "C:\path\app.exe"  # 仅屏蔽某个程序
 netwatch-cli --unblock 1.2.3.4          # 解除屏蔽
 netwatch-cli --blocks                  # 查看屏蔽列表
+netwatch-cli --remotes 15              # 目标 IP 视图（CLI 版）
 ```
 
 输出示例：
@@ -78,6 +80,7 @@ netwatch-cli --blocks                  # 查看屏蔽列表
         ▼
 按 PID 累加字节数 ──► 每秒取增量算速率 ──► WPF 界面展示
         │
+        ├─► 按"对端 IP"聚合 ──► 目标 IP 视图
         └─► 连接列表：GetExtendedTcpTable / GetExtendedUdpTable（IP Helper API）
 
 屏蔽：WFP（Windows 筛选平台）自建子层 + BLOCK 过滤器
