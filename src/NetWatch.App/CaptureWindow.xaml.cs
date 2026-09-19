@@ -16,14 +16,15 @@ public partial class CaptureWindow : Window
 
     private sealed class PacketRow
     {
-        public string Time = "";
-        public string Dir = "";
-        public bool IsOut;
-        public string Remote = "";
-        public string Proto = "";
-        public string Len = "";
-        public string Preview = "";
-        public PacketInfo Packet = null!;
+        // 必须是属性：WPF 绑定不认公共字段（否则单元格全空）
+        public string Time { get; set; } = "";
+        public string Dir { get; set; } = "";
+        public bool IsOut { get; set; }
+        public string Remote { get; set; } = "";
+        public string Proto { get; set; } = "";
+        public string Len { get; set; } = "";
+        public string Preview { get; set; } = "";
+        public PacketInfo Packet { get; set; } = null!;
     }
 
     private readonly PacketSniffer? _sniffer;

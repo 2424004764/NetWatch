@@ -13,11 +13,12 @@ public partial class BlockListWindow : Window
 
     private sealed class BlockRow
     {
-        public BlockEntry Entry = null!;
-        public string Remote = "";
-        public string Scope = "";
-        public string State = "";
-        public string Created = "";
+        // 必须是属性：WPF 绑定不认公共字段（否则单元格全空）
+        public BlockEntry Entry { get; set; } = null!;
+        public string Remote { get; set; } = "";
+        public string Scope { get; set; } = "";
+        public string State { get; set; } = "";
+        public string Created { get; set; } = "";
     }
 
     public BlockListWindow(BlockManager blocks)
