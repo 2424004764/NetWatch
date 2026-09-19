@@ -23,7 +23,7 @@
             <StackPanel>
                 <TextBlock x:Name="HeaderText" Foreground="#FFF2F2F6" FontSize="13.5" FontWeight="SemiBold"/>
                 <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="#FF8A8A96"
-                           Text="明文协议（HTTP/DNS 等）可直接看到内容；HTTPS/TLS 显示为加密数据。仅 IPv4。"/>
+                           Text="标记说明：🔒=加密（明文不可见）· DNS/HTTP 等明文协议直接可读 · 点号=不可读字符 · 仅支持 IPv4"/>
             </StackPanel>
         </Border>
         <Border DockPanel.Dock="Top" Background="#FF232329" Padding="12,7">

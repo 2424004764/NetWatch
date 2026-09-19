@@ -87,7 +87,7 @@ public partial class CaptureWindow : Window
                 Remote = p.RemoteIp + ":" + p.RemotePort,
                 Proto = p.Protocol,
                 Len = p.PayloadLen + " B",
-                Preview = PayloadDescribe.Preview(p.Payload, 130),
+                Preview = PayloadDescribe.Summary(p, 130),
                 Packet = p,
             };
             Rows.Add(row);
@@ -142,9 +142,10 @@ public partial class CaptureWindow : Window
     private void RenderSelected()
     {
         if (PacketGrid?.SelectedItem is not PacketRow row) return;
-        DetailBox.Text = _hexMode
+        var header = "【解读】" + PayloadDescribe.Summary(row.Packet) + "\n" + new string('─', 56) + "\n";
+        DetailBox.Text = header + (_hexMode
             ? PayloadDescribe.HexDump(row.Packet.Payload)
-            : PayloadDescribe.FullText(row.Packet.Payload);
+            : PayloadDescribe.FullText(row.Packet.Payload));
     }
 
     private void OnClear(object sender, RoutedEventArgs e)

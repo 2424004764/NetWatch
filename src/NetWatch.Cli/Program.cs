@@ -148,7 +148,9 @@ static int RunSniffView(string[] args)
     {
         Interlocked.Increment(ref count);
         var t = p.TimeUtc.ToLocalTime();
-        Console.WriteLine($"{t:HH:mm:ss.fff} {(p.Outbound ? "↑发" : "↓收")} {p.RemoteIp}:{p.RemotePort,-5} {p.Protocol} {p.PayloadLen,5}B  {Cut(PayloadDescribe.Preview(p.Payload, 90), 92)}");
+        Console.WriteLine($"{t:HH:mm:ss.fff} {(p.Outbound ? "↑发" : "↓收")} {p.RemoteIp}:{p.RemotePort,-5} {p.Protocol} {p.PayloadLen,5}B  {Cut(PayloadDescribe.Summary(p, 90), 92)}");
+        if (System.Environment.GetEnvironmentVariable("SNIFF_HEX") != null && p.Payload.Length >= 2 && p.Payload[0] == 0x16 && p.Payload[1] == 0x03 && p.Payload.Length > 6 && p.Payload[5] == 0x01)
+            Console.WriteLine(PayloadDescribe.HexDump(p.Payload, 640));
     };
 
     Console.WriteLine($"抓包 {seconds} 秒：{target}（{sniffer.InterfaceCount} 个监听点）…");
