@@ -33,6 +33,11 @@
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="BtnCert" Content="① 安装调试根证书" Click="OnToggleCert" Margin="0,0,8,0"/>
                     <Button x:Name="BtnSysProxy" Content="② 开启系统代理" Click="OnToggleProxy" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="ViewMode" Width="88" Margin="0,0,8,0"
+                              SelectionChanged="OnViewModeChanged">
+                        <ComboBoxItem Content="文本" IsSelected="True"/>
+                        <ComboBoxItem Content="十六进制"/>
+                    </ComboBox>
                     <Button Content="清空" Click="OnClear"/>
                 </StackPanel>
             </DockPanel>

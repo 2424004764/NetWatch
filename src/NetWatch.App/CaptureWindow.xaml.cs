@@ -143,9 +143,17 @@ public partial class CaptureWindow : Window
     {
         if (PacketGrid?.SelectedItem is not PacketRow row) return;
         var header = "【解读】" + PayloadDescribe.Summary(row.Packet) + "\n" + new string('─', 56) + "\n";
-        DetailBox.Text = header + (_hexMode
-            ? PayloadDescribe.HexDump(row.Packet.Payload)
-            : PayloadDescribe.FullText(row.Packet.Payload));
+        var payload = row.Packet.Payload;
+        bool binary = PayloadDescribe.LooksBinary(payload);
+        if (_hexMode || binary)
+        {
+            var note = binary && !_hexMode ? "内容为二进制，已自动切换为十六进制视图：\n\n" : "";
+            DetailBox.Text = header + note + PayloadDescribe.HexDump(payload);
+        }
+        else
+        {
+            DetailBox.Text = header + PayloadDescribe.FullText(payload);
+        }
     }
 
     private void OnClear(object sender, RoutedEventArgs e)

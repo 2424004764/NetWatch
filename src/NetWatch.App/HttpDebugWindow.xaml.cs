@@ -137,15 +137,35 @@ public partial class HttpDebugWindow : Window
 
     private void OnReqSelected(object sender, SelectionChangedEventArgs e) => RenderSelected();
 
+    private bool _hexMode;
+
+    private void OnViewModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ReqGrid is null) return; // XAML 解析期保护
+        _hexMode = ViewMode.SelectedIndex == 1;
+        RenderSelected();
+    }
+
+    private string BodySection(byte[] body, string? text)
+    {
+        if (body.Length == 0) return "（无）";
+        if (_hexMode || text == null)
+        {
+            var note = text == null && !_hexMode ? "二进制内容，十六进制视图：\n" : "";
+            return note + PayloadDescribe.HexDump(body, 8192);
+        }
+        return text;
+    }
+
     private void RenderSelected()
     {
         if (ReqGrid?.SelectedItem is not HttpRow row) return;
         var e = row.Exchange;
         var sb = new StringBuilder();
         sb.Append("──── 请求 ────\n").Append(e.ReqHead.TrimEnd()).Append('\n');
-        sb.Append(e.ReqText is { } qt ? "\n【请求体明文】\n" + qt + "\n" : e.ReqBody.Length > 0 ? $"\n【请求体】二进制 {e.ReqBody.Length} 字节（可切十六进制视图）\n" : "\n（无请求体）\n");
+        sb.Append("\n【请求体】\n").Append(BodySection(e.ReqBody, e.ReqText)).Append('\n');
         sb.Append("\n──── 响应 ────\n").Append(e.RespHead.TrimEnd()).Append('\n');
-        sb.Append(e.RespText is { } rt ? "\n【响应体明文】\n" + rt + "\n" : e.RespBody.Length > 0 ? $"\n【响应体】二进制 {e.RespBody.Length} 字节\n" : "\n（无响应体）\n");
+        sb.Append("\n【响应体】\n").Append(BodySection(e.RespBody, e.RespText)).Append('\n');
         DetailBox.Text = sb.ToString();
     }
 

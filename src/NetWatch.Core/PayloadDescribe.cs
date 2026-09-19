@@ -220,6 +220,10 @@ public static class PayloadDescribe
         return v.Length > 0 ? v : null;
     }
 
+    /// <summary>内容是否以二进制为主（文本视图不可读，应改用十六进制）。</summary>
+    public static bool LooksBinary(byte[] d)
+        => d.Length > 0 && PrintableRatio(d) < 0.7;
+
     private static double PrintableRatio(byte[] d)
     {
         int n = Math.Min(d.Length, 512), ok = 0;
