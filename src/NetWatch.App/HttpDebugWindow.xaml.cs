@@ -113,7 +113,8 @@ public partial class HttpDebugWindow : Window
         StatusText.Text = $"已捕获 {_count:N0} 个请求" +
                           (shown < Rows.Count ? $" · 筛选显示 {shown:N0}" : "") +
                           $" · 代理端口 {_proxy.Port}" +
-                          (SystemProxy.IsEnabled() ? " · 系统代理已接管" : "");
+                          (SystemProxy.IsEnabled() ? " · 系统代理已接管" : "") +
+                          (_launchedName is { } ln ? " · 已带代理启动 " + ln : "");
     }
 
     private static string ShortType(string contentType)
@@ -126,7 +127,7 @@ public partial class HttpDebugWindow : Window
         catch (Exception ex) { Log.Error("查询证书状态失败：" + ex.Message); }
         BtnCert.Content = installed ? "① 移除调试根证书" : "① 安装调试根证书";
         bool proxyOn = SystemProxy.IsEnabled();
-        BtnSysProxy.Content = proxyOn ? "② 关闭系统代理" : "② 开启系统代理（127.0.0.1:" + _proxy.Port + "）";
+        BtnSysProxy.Content = proxyOn ? "③ 还原系统代理" : "③ 全局接管系统代理（高级）";
     }
 
     private void OnToggleCert(object sender, RoutedEventArgs e)
@@ -168,6 +169,58 @@ public partial class HttpDebugWindow : Window
             MessageBox.Show(this, ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         RefreshToolbar();
+    }
+
+    private string? _launchedName;
+
+    private void OnCopyProxy(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText("http://127.0.0.1:" + _proxy.Port);
+            BtnCopyProxy.Content = "已复制 127.0.0.1:" + _proxy.Port;
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            t.Tick += (_, _) => { t.Stop(); BtnCopyProxy.Content = "复制代理地址"; };
+            t.Start();
+            UpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnLaunchTarget(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择要调试的程序（将以代理环境变量启动）",
+            Filter = "程序 (*.exe)|*.exe",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            var url = "http://127.0.0.1:" + _proxy.Port;
+            var psi = new System.Diagnostics.ProcessStartInfo(dlg.FileName)
+            {
+                UseShellExecute = false,
+                WorkingDirectory = System.IO.Path.GetDirectoryName(dlg.FileName) ?? "",
+            };
+            foreach (var k in new[] { "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy" })
+                psi.EnvironmentVariables[k] = url;
+            psi.EnvironmentVariables["NO_PROXY"] = psi.EnvironmentVariables["no_proxy"] = "localhost,127.0.0.1,::1";
+            var name = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName).ToLowerInvariant();
+            if (name.Contains("chrome") || name.Contains("msedge") || name.Contains("chromium")
+                || name.Contains("brave") || name.Contains("opera") || name.Contains("vivaldi"))
+                psi.ArgumentList.Add("--proxy-server=" + url); // Chromium 系不吃环境变量
+            System.Diagnostics.Process.Start(psi);
+            _launchedName = System.IO.Path.GetFileName(dlg.FileName);
+            UpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "NetWatch", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void OnReqSelected(object sender, SelectionChangedEventArgs e) => RenderSelected();

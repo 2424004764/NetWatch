@@ -23,28 +23,36 @@
             <StackPanel>
                 <TextBlock x:Name="HeaderText" Foreground="#FFF2F2F6" FontSize="13.5" FontWeight="SemiBold"/>
                 <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="#FF8A8A96"
-                           Text="HTTPS 也能看到明文：先安装调试根证书，再开启系统代理，然后重启你的软件。仅用于调试自己的软件，用完请移除证书并关闭代理。"/>
+                           Text="接入方式（影响范围从小到大）：① 复制代理地址填进自己软件的代理设置（只影响它，推荐）② 「启动调试目标」带代理环境变量启动你的程序，Go/.NET/Python/Node/curl 会自动读取 ③ 全局接管系统代理（影响所有软件，最省事）。HTTPS 明文需先安装调试根证书。"/>
+                <TextBlock Margin="0,3,0,0" FontSize="11" Foreground="#FF6F6F7A"
+                           Text="仅用于调试自己的软件，用完请移除证书。关闭本窗口后，由它启动的程序代理会失效，重启该程序即可恢复正常联网。"/>
             </StackPanel>
         </Border>
         <Border DockPanel.Dock="Top" Background="#FF232329" Padding="12,7">
             <DockPanel>
                 <TextBlock x:Name="StatusText" DockPanel.Dock="Right" Foreground="#FF8A8A96"
                            FontSize="11.5" VerticalAlignment="Center"/>
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="BtnCert" Content="① 安装调试根证书" Click="OnToggleCert" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnSysProxy" Content="② 开启系统代理" Click="OnToggleProxy" Margin="0,0,8,0"/>
-                    <TextBox x:Name="FilterBox" Width="230" Margin="0,0,8,0"
-                             VerticalContentAlignment="Center" Padding="6,3"
-                             Background="#FF1A1A1F" Foreground="#FFD8D8DE"
-                             BorderBrush="#FF3A3A44" CaretBrush="#FFD8D8DE"
-                             ToolTip="筛选：多个关键字空格分隔（全部满足）&#10;!开头 = 排除&#10;例：idaqimg&#10;例：POST !OPTIONS&#10;例：200 json"
-                             TextChanged="OnFilterChanged"/>
-                    <ComboBox x:Name="ViewMode" Width="88" Margin="0,0,8,0"
-                              SelectionChanged="OnViewModeChanged">
-                        <ComboBoxItem Content="文本" IsSelected="True"/>
-                        <ComboBoxItem Content="十六进制"/>
-                    </ComboBox>
-                    <Button Content="清空" Click="OnClear"/>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button x:Name="BtnCert" Content="① 安装调试根证书" Click="OnToggleCert" Margin="0,0,8,0"/>
+                        <Button x:Name="BtnSysProxy" Content="③ 全局接管系统代理" Click="OnToggleProxy"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnCopyProxy" Content="复制代理地址" Click="OnCopyProxy" Margin="0,0,8,0"/>
+                        <Button x:Name="BtnLaunch" Content="启动调试目标…" Click="OnLaunchTarget" Margin="0,0,8,0"/>
+                        <TextBox x:Name="FilterBox" Width="200" Margin="0,0,8,0"
+                                 VerticalContentAlignment="Center" Padding="6,3"
+                                 Background="#FF1A1A1F" Foreground="#FFD8D8DE"
+                                 BorderBrush="#FF3A3A44" CaretBrush="#FFD8D8DE"
+                                 ToolTip="筛选：多个关键字空格分隔（全部满足）&#10;!开头 = 排除&#10;例：idaqimg&#10;例：POST !OPTIONS&#10;例：200 json"
+                                 TextChanged="OnFilterChanged"/>
+                        <ComboBox x:Name="ViewMode" Width="88" Margin="0,0,8,0"
+                                  SelectionChanged="OnViewModeChanged">
+                            <ComboBoxItem Content="文本" IsSelected="True"/>
+                            <ComboBoxItem Content="十六进制"/>
+                        </ComboBox>
+                        <Button Content="清空" Click="OnClear"/>
+                    </StackPanel>
                 </StackPanel>
             </DockPanel>
         </Border>
