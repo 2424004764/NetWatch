@@ -261,7 +261,7 @@ public partial class HttpDebugWindow : Window
     {
         Rows.Clear();
         View.Refresh();
-        DetailBox.Text = "（选择上方请求查看完整内容）";
+        DetailBox.Text = "（尚未捕获到请求——先把流量接入本代理（三选一）：\n  ① 点「复制代理地址」，填进你要调试的软件的代理设置（只影响它）\n  ② 点「启动调试目标…」，带代理启动你的程序（Go/.NET/Python/Node/curl 自动生效）\n  ③ 点「③ 全局接管系统代理（高级）」让所有软件走本代理，接好后重启/刷新要看的软件\n接入后，这里会实时列出请求）";
         UpdateStatus();
     }
 
