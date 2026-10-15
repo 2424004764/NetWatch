@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "packageName": "NetWatchStrict",
+  "architecture": "amd64",
+  "supportedWindows": [
+    "10_VB_X64",
+    "10_NI_X64",
+    "10_GE_X64"
+  ],
+  "minimumWindowsBuild": "10.0.19041",
+  "targetSdk": "10.0.26100.0",
+  "kmdfVersion": "1.33",
+  "inf": "NetWatchStrict.inf",
+  "sys": "NetWatchStrict.sys",
+  "catalog": "NetWatchStrict.cat",
+  "signingPolicy": {
+    "developmentBuild": "UnsignedDev",
+    "releaseBuild": "SignedRelease",
+    "requiresMicrosoftAcceptedKernelSignature": true,
+    "allowTestSigning": false,
+    "allowSelfSigned": false,
+    "certificateGenerationInRepository": false
+  },
+  "sourceOfTruth": "driver/NetWatchStrict.inf",
+  "staleArtifactPolicy": "Only artifacts emitted by build-strict-driver.ps1 and verified by strict-driver-signature.ps1 are installable."
+}

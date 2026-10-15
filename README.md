@@ -13,6 +13,8 @@
 - **双击应用**查看它当前的所有 TCP/UDP 连接：本地 / 远程地址、连接状态、PID（每 2 秒自动刷新）
 - **目标 IP 视图**（v1.2 新增）：一键切换，按远程地址聚合——"数据都发给了谁、各发了多少"，附带通信应用名；右键可直接屏蔽该 IP，双击查看与它的连接
 - **🚫 屏蔽 IP**（v1.1 新增）：在连接详情里右键某个远程 IP，即可禁止该应用（或所有程序）向它发送数据；支持 IP 和 CIDR 网段，可随时启停/删除，规则持久保存
+- **⏱ 程序上传限速**（v1.9 新增）：应用列表右键「设置上传限速」，或打开「上传限速」管理；使用 Windows 原生 QoS 按单个 exe 路径限制出站上传速度。它是单程序 best-effort 限速，不是多个 exe 共享的严格总上限。规则只在 NetWatch 会话中管理，正常退出自动删除；修改/取消后建议重启目标程序或重新建立连接。
+- **⛓ 严格总上传限速**（进程组，开发中）：驱动数据面现在包含 bounded pending queue、异步 classify、双栈 transport reinjection、epoch/teardown 清理和 live queued stats；驱动只有在本地 control device、双栈 injection、timer/DPC、四个 callout 和 IO queue 全部初始化成功时才会报告完整 capability。StrictService 仍要求 Microsoft-accepted 签名、Secure Boot/HVCI、真实 WFP filter 命中、Driver Verifier teardown race 和双进程接收端吞吐验收全部通过后才开放 management filters。现有单程序 QoS 限速不受影响。
 - **🧲 HTTP 调试**（v1.6 新增）：内置 MITM 调试代理（同 Fiddler 原理，无需安装任何外部工具）——安装调试根证书并一键接管系统代理后，HTTPS 的请求/响应**明文**直接可见（POST 表单、JSON 等），自动解压 gzip/br；关闭窗口自动恢复系统代理，用完可一键移除根证书
 - **🔍 数据包查看**（v1.3 新增）：对任意 IP（屏蔽管理或目标 IP 视图右键）实时抓包，直接看到发往它的数据内容——HTTP 请求、JSON、表单等明文一览；支持文本/十六进制视图、上下行过滤。明文协议可见全文，HTTPS/TLS 显示为加密数据
 - 右键 → 打开文件位置
@@ -101,15 +103,19 @@ netwatch-cli --sniff 1.2.3.4 10        # 抓包：打印发往/来自该 IP 的�
 - NetWatch 退出后已生效的屏蔽会继续生效；**系统重启后**若未启动 NetWatch 则不再恢复
 - 想彻底清掉所有屏蔽：在 NetWatch 里删除全部规则（或重启系统）
 
-不安装驱动、不注入 DLL、不修改系统网络栈，全部使用 Windows 原生跟踪机制，关闭程序后不留任何残留。
+不安装驱动、不注入 DLL、不修改系统网络栈，普通监控、抓包和 IP 屏蔽功能全部使用 Windows 原生机制，关闭程序后不留任何残留。**严格总上传限速是例外**：它需要额外安装并签名的 WFP callout 驱动和 Windows 服务；仅复制 `publish\NetWatch.exe` 不会获得严格进程组限速。
 
 ## 📁 项目结构
 
 ```
 NetWatch/
+├── driver/              # 严格总上传限速的 WFP callout 驱动、队列/重注入实现与验收门禁
+│   ├── README.md
+│   └── netwatch-strict-callout-poc.md
 ├── src/
-│   ├── NetWatch.Core/   # 采集核心：ETW 按进程统计流量 + 连接枚举 + WFP 屏蔽（P/Invoke）
+│   ├── NetWatch.Core/   # 采集核心：ETW 按进程统计流量 + 连接枚举 + WFP 屏蔽/限速控制面
 │   ├── NetWatch.App/    # WPF 桌面界面
+│   ├── NetWatch.StrictService/ # 严格限速服务控制面
 │   └── NetWatch.Cli/    # 命令行验证工具
 ├── docs/                # 截图等文档资源
 └── .github/workflows/   # CI：Windows 构建并上传产物
@@ -122,6 +128,7 @@ NetWatch/
 - 走 VPN / 代理的流量会归到代理进程名下（如 cloudflared），而非原始应用
 - 与其他占用内核跟踪会话的工具（如 PerfView、Wireshark 内核捕获）互斥，同时只能开一个
 - 抓包为明文分析工具：HTTPS/TLS 内容加密不可见（与 Wireshark 无密钥时一致）；抓包仅支持 IPv4，本机回环流量不可见
+- 上传限速：Windows QoS 按完整 exe 路径匹配出站端点，参数内部使用 bit/s；这是单程序 best-effort 限速，不能把多个不同 exe 的规则合并为一个严格共享桶。需要数学意义的进程组总上限时，必须安装并加载 NetWatch WFP callout 驱动和 Windows 服务；没有驱动时严格进程组只保存配置，不会限制流量。
 - 日志位于 `%TEMP%\netwatch.log`
 
 ## 📄 许可证

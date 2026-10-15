@@ -1,0 +1,40 @@
+[Version]
+Signature="$Windows NT$"
+Class=System
+ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider=%ProviderName%
+DriverVer=09/23/2026,1.0.0.0
+CatalogFile=NetWatchStrict.cat
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir=13
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+NetWatchStrict.sys=1
+
+[DefaultInstall.NTamd64]
+CopyFiles=DriverCopy
+
+[DefaultInstall.NTamd64.Services]
+AddService=NetWatchStrict,0x00000002,ServiceInstall
+
+[DriverCopy]
+NetWatchStrict.sys
+
+[ServiceInstall]
+DisplayName=%ServiceName%
+Description=%ServiceDescription%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%13%\NetWatchStrict.sys
+
+[Strings]
+ProviderName="NetWatch"
+DiskName="NetWatch Strict Upload Driver"
+ServiceName="NetWatch Strict Upload WFP Callout"
+ServiceDescription="NetWatch strict upload shaping control driver"

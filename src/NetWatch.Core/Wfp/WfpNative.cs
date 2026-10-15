@@ -8,7 +8,10 @@ internal static class WfpNative
 {
     // FWP_ACTION_TYPE
     internal const uint FWP_ACTION_BLOCK = 0x1001; // 0x1 | FWP_ACTION_FLAG_TERMINATING
-
+    internal const uint FWP_ACTION_CALLOUT_TERMINATING = 0x5003;
+    internal const uint FWPM_SESSION_FLAG_DYNAMIC = 1;
+    internal const uint FWPM_FILTER_FLAG_PERMIT_IF_CALLOUT_UNREGISTERED = 0x10;
+    internal const uint FWPM_FILTER_FLAG_DISABLED = 0x20;
     // FWP_DATA_TYPE（本实现用到的）
     internal const uint FWP_EMPTY = 0;
     internal const uint FWP_UINT64 = 4;
@@ -20,14 +23,50 @@ internal static class WfpNative
     internal const uint FWP_E_ALREADY_EXISTS = 0x80320009;
     internal const uint FWP_MATCH_EQUAL = 0;
 
-    /// <summary>连接授权层（IPv4）：拦截 connect()/sendto() 目的地址的匹配。</summary>
     internal static readonly Guid LayerAleAuthConnectV4 = new("C38D57D1-05A7-4C33-904F-7FBCEEE60E82");
-    /// <summary>连接授权层（IPv6）。</summary>
     internal static readonly Guid LayerAleAuthConnectV6 = new("4A72393B-319F-44BC-84C3-BA54DCB3B6B4");
-    /// <summary>条件：发起连接的应用程序（NT 设备路径 blob）。</summary>
     internal static readonly Guid ConditionAleAppId = new("D78E1E87-8644-4EA5-9437-D809ECEFC971");
-    /// <summary>条件：远程 IP 地址（支持掩码/网段）。</summary>
     internal static readonly Guid ConditionIpRemoteAddress = new("B235AE9A-1D64-49B8-A44C-5FF3D9095045");
+    internal static readonly Guid LayerAleFlowEstablishedV4 = new("AF80470A-5596-4C13-9992-539E6FE57967");
+    internal static readonly Guid LayerAleFlowEstablishedV6 = new("7021D2B3-DFA4-406E-AFEB-6AFAF7E70EFD");
+    internal static readonly Guid LayerOutboundTransportV4 = new("09E61AEA-D214-46E2-9B21-B26B0B2F28C8");
+    internal static readonly Guid LayerOutboundTransportV6 = new("E1735BDE-013F-4655-B351-A49E15762DF0");
+
+    /// <summary>本机动态 WFP session；BFE 在 engine handle 关闭时删除其中的临时对象。</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FWPM_SESSION0
+    {
+        public Guid SessionKey;
+        public FWPM_DISPLAY_DATA0 DisplayData;
+        public uint Flags;
+        public uint TxnWaitTimeoutInMSec;
+        public uint ProcessId;
+        public IntPtr Sid;
+        public IntPtr Username;
+        [MarshalAs(UnmanagedType.Bool)] public bool KernelMode;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FWPM_PROVIDER0
+    {
+        public Guid ProviderKey;
+        public FWPM_DISPLAY_DATA0 DisplayData;
+        public uint Flags;
+        public FWP_BYTE_BLOB ProviderData;
+        public IntPtr ServiceName;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FWPM_CALLOUT0
+    {
+        public Guid CalloutKey;
+        public FWPM_DISPLAY_DATA0 DisplayData;
+        public uint Flags;
+        public IntPtr ProviderKey;
+        public FWP_BYTE_BLOB ProviderData;
+        public Guid ApplicableLayer;
+        public uint CalloutId;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct FWPM_DISPLAY_DATA0
@@ -127,6 +166,18 @@ internal static class WfpNative
         public ushort Weight;           // 子层权重，越大越先评估
     }
 
+    internal const int ExpectedFwpmSession0SizeX64 = 72;
+    internal const int ExpectedFwpmProvider0SizeX64 = 64;
+    internal const int ExpectedFwpmCallout0SizeX64 = 88;
+    internal const int ExpectedFwpmFilter0SizeX64 = 192;
+
+    internal static bool ValidateStrictInteropLayout()
+        => IntPtr.Size != 8 || Marshal.SizeOf<FWPM_SESSION0>() == ExpectedFwpmSession0SizeX64
+            && Marshal.SizeOf<FWPM_PROVIDER0>() == ExpectedFwpmProvider0SizeX64
+            && Marshal.SizeOf<FWPM_CALLOUT0>() == ExpectedFwpmCallout0SizeX64
+            && Marshal.SizeOf<FWPM_SUBLAYER0>() == 72
+            && Marshal.SizeOf<FWPM_FILTER0>() == ExpectedFwpmFilter0SizeX64;
+
     [DllImport("fwpuclnt.dll")]
     internal static extern uint FwpmEngineOpen0(IntPtr serverName, uint authnService, IntPtr authIdentity,
         IntPtr session, out IntPtr engineHandle);
@@ -151,7 +202,28 @@ internal static class WfpNative
         out ulong id);
 
     [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmFilterEnable0(IntPtr engineHandle, ulong id);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmFilterDisable0(IntPtr engineHandle, ulong id);
+
+    [DllImport("fwpuclnt.dll")]
     internal static extern uint FwpmFilterDeleteByKey0(IntPtr engineHandle, ref Guid key);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmProviderAdd0(IntPtr engineHandle, ref FWPM_PROVIDER0 provider, IntPtr sd);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmCalloutAdd0(IntPtr engineHandle, ref FWPM_CALLOUT0 callout, IntPtr sd, out uint calloutId);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmCalloutDeleteByKey0(IntPtr engineHandle, ref Guid key);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmSubLayerDeleteByKey0(IntPtr engineHandle, ref Guid key);
+
+    [DllImport("fwpuclnt.dll")]
+    internal static extern uint FwpmProviderDeleteByKey0(IntPtr engineHandle, ref Guid key);
 
     [DllImport("fwpuclnt.dll")]
     internal static extern uint FwpmGetAppIdFromFileName0(
