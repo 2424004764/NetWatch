@@ -3,6 +3,21 @@ bin/
 obj/
 publish/
 publish-selfcontained/
+publish-local/
+publish-local-fixed/
+publish-strict-phase2/
+publish-strict-ui/
+
+# 驱动构建产物（源码在 driver/src、driver/NetWatchStrict.inf）
+driver/x64/
+driver/build/
+driver/package/
+
+# 吞吐测试运行报告
+tools/StrictThroughput/*-report.json
+
+# 本地会话产物
+.zcode/
 
 # Visual Studio / Rider
 .vs/
