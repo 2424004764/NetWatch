@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using NetWatch.Core;
+using NetWatch.Core.Qos;
 using NetWatch.Core.Wfp;
 using WinForms = System.Windows.Forms;
 
@@ -21,6 +22,8 @@ public partial class MainWindow : Window
 {
     private readonly NetworkMonitor? _monitor;
     private readonly BlockManager _blocks = new();
+    private readonly UploadLimitManager _uploadLimits = new();
+    private readonly StrictUploadLimitClient _strictUploadGroups = new();
     private readonly ProcessInfoCache _procs = new();
     private readonly ObservableCollection<AppRow> _rows = new();
     private readonly Dictionary<string, AppRow> _byKey = new(StringComparer.OrdinalIgnoreCase);
@@ -35,17 +38,35 @@ public partial class MainWindow : Window
     private WinForms.NotifyIcon? _tray;
     private bool _reallyExit;
 
+    private enum SortField
+    {
+        Activity,
+        Upload,
+        Download,
+        TotalUpload,
+        TotalDownload,
+        Connections,
+    }
+
+    private SortField _appSortField = SortField.Activity;
+    private bool _appSortDescending = true;
+    private SortField _ipSortField = SortField.Activity;
+    private bool _ipSortDescending = true;
+
     public MainWindow()
     {
         InitializeComponent();
+        Title = IsAdministrator()
+            ? "NetWatch · 应用网络流量监控 · 管理员模式"
+            : "NetWatch · 应用网络流量监控";
         Icon = Icons.WindowIcon();
 
         var view = (ListCollectionView)CollectionViewSource.GetDefaultView(_rows);
-        view.CustomSort = Comparer<object>.Create((a, b) => ((AppRow)b).SortScore.CompareTo(((AppRow)a).SortScore));
+        view.CustomSort = Comparer<object>.Create((a, b) => CompareApps((AppRow)a, (AppRow)b));
         AppList.ItemsSource = view;
 
         var ipView = (ListCollectionView)CollectionViewSource.GetDefaultView(_ipRows);
-        ipView.CustomSort = Comparer<object>.Create((a, b) => ((IpRow)b).SortScore.CompareTo(((IpRow)a).SortScore));
+        ipView.CustomSort = Comparer<object>.Create((a, b) => CompareIps((IpRow)a, (IpRow)b));
         IpList.ItemsSource = ipView;
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -64,14 +85,123 @@ public partial class MainWindow : Window
         }
 
         Log.Info($"诊断：内核监控启动 {sw.ElapsedMilliseconds} ms");
+        _strictUploadGroups.StartSession();
         _timer.Tick += OnTick;
         _timer.Start();
         sw.Restart();
         try { _blocks.Load(); }
         catch (Exception ex) { Log.Error("屏蔽功能初始化失败：" + ex.Message); }
         Log.Info($"诊断：屏蔽规则加载 {sw.ElapsedMilliseconds} ms");
+        try { _uploadLimits.Load(); }
+        catch (Exception ex) { Log.Error("上传限速初始化失败：" + ex.Message); }
         Loaded += (_, _) => InitTray();
-        Closed += Window_Closed;
+    }
+
+    private static bool IsAdministrator()
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        return new System.Security.Principal.WindowsPrincipal(identity)
+            .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+    }
+
+    private int CompareApps(AppRow a, AppRow b)
+    {
+        int result = _appSortField switch
+        {
+            SortField.Upload => a.UploadSortValue.CompareTo(b.UploadSortValue),
+            SortField.Download => a.DownloadSortValue.CompareTo(b.DownloadSortValue),
+            SortField.TotalUpload => a.TotalUploadSortValue.CompareTo(b.TotalUploadSortValue),
+            SortField.TotalDownload => a.TotalDownloadSortValue.CompareTo(b.TotalDownloadSortValue),
+            SortField.Connections => a.ConnectionSortValue.CompareTo(b.ConnectionSortValue),
+            _ => a.SortScore.CompareTo(b.SortScore),
+        };
+        if (_appSortDescending) result = -result;
+        return result != 0 ? result : string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int CompareIps(IpRow a, IpRow b)
+    {
+        int result = _ipSortField switch
+        {
+            SortField.Upload => a.UploadSortValue.CompareTo(b.UploadSortValue),
+            SortField.Download => a.DownloadSortValue.CompareTo(b.DownloadSortValue),
+            SortField.TotalUpload => a.TotalUploadSortValue.CompareTo(b.TotalUploadSortValue),
+            SortField.TotalDownload => a.TotalDownloadSortValue.CompareTo(b.TotalDownloadSortValue),
+            SortField.Connections => a.ConnectionSortValue.CompareTo(b.ConnectionSortValue),
+            _ => a.SortScore.CompareTo(b.SortScore),
+        };
+        if (_ipSortDescending) result = -result;
+        return result != 0 ? result : string.Compare(a.Ip, b.Ip, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OnColumnHeaderClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not GridViewColumnHeader header || header.Column is null) return;
+        if (AppList.View is GridView appView && appView.Columns.Contains(header.Column))
+        {
+            var field = FieldForHeader(header.Column.Header?.ToString());
+            if (field is null) return;
+            if (_appSortField == field.Value) _appSortDescending = !_appSortDescending;
+            else { _appSortField = field.Value; _appSortDescending = true; }
+            UpdateAppSortHeader();
+            ((ListCollectionView)CollectionViewSource.GetDefaultView(_rows)).Refresh();
+            return;
+        }
+
+        if (IpList.View is GridView ipView && ipView.Columns.Contains(header.Column))
+        {
+            var field = FieldForHeader(header.Column.Header?.ToString());
+            if (field is null) return;
+            if (_ipSortField == field.Value) _ipSortDescending = !_ipSortDescending;
+            else { _ipSortField = field.Value; _ipSortDescending = true; }
+            UpdateIpSortHeader();
+            ((ListCollectionView)CollectionViewSource.GetDefaultView(_ipRows)).Refresh();
+        }
+    }
+
+    private void UpdateIpSortHeader()
+    {
+        if (IpList.View is not GridView view) return;
+        foreach (var column in view.Columns)
+        {
+            var header = column.Header?.ToString();
+            if (header is null) continue;
+            column.Header = header.TrimEnd(' ', '▲', '▼');
+        }
+
+        var selected = view.Columns.FirstOrDefault(c => FieldForHeader(c.Header?.ToString()) == _ipSortField);
+        if (selected is not null)
+            selected.Header = selected.Header + (_ipSortDescending ? " ▼" : " ▲");
+    }
+
+    private void UpdateAppSortHeader()
+    {
+        if (AppList.View is not GridView view) return;
+        foreach (var column in view.Columns)
+        {
+            var header = column.Header?.ToString();
+            if (header is null) continue;
+            column.Header = header.TrimEnd(' ', '▲', '▼');
+        }
+
+        var selected = view.Columns.FirstOrDefault(c => FieldForHeader(c.Header?.ToString()) == _appSortField);
+        if (selected is not null)
+            selected.Header = selected.Header + (_appSortDescending ? " ▼" : " ▲");
+    }
+
+    private static SortField? FieldForHeader(string? header)
+    {
+        if (header is null) return null;
+        header = header.TrimEnd(' ', '▲', '▼');
+        return header switch
+        {
+            "↑ 上传速度" => SortField.Upload,
+            "↓ 下载速度" => SortField.Download,
+            "累计上传" => SortField.TotalUpload,
+            "累计下载" => SortField.TotalDownload,
+            "连接" => SortField.Connections,
+            _ => null,
+        };
     }
 
     private void OnTick(object? sender, EventArgs e)
@@ -147,7 +277,10 @@ public partial class MainWindow : Window
             }
             if (row.Icon is null && kv.Value.Path is not null && _iconCache.TryGetValue(kv.Value.Path, out var laterIcon))
                 row.Icon = laterIcon; // 后台提取完成后回填
-            row.Apply(kv.Value, connByPid, elapsed, nowUtc);
+            row.Apply(kv.Value, connByPid, elapsed, nowUtc,
+                _uploadLimits.FindKnown(row.Path) is { Enabled: true } limit
+                    ? "限速 " + Fmt.Speed(limit.BytesPerSecond)
+                    : "");
         }
 
         // 清理：长期没有新数据、且进程已全部退出的行
@@ -179,9 +312,15 @@ public partial class MainWindow : Window
         TotalDownSpeed.Text = Fmt.Speed(downSpeed);
         GrandUp.Text = Fmt.Bytes(_grandUp);
         GrandDown.Text = Fmt.Bytes(_grandDown);
+        GrandSummary.ToolTip = $"累计上传 {GrandUp.Text} / 累计下载 {GrandDown.Text}（自 NetWatch 启动起统计）";
         StatusText.Text = $"ETW 事件 {mon.EventCount:N0} · 活动连接 {conns.Count} · 已运行 {(DateTime.Now - _started).ToString(@"hh\:mm\:ss")}";
         var active = _blocks.ActiveCount;
         BtnBlockList.Content = active > 0 ? $"🚫 屏蔽管理 ({active})" : "🚫 屏蔽管理";
+        if (BtnLimitList is not null)
+        {
+            var limited = _uploadLimits.ActiveCount;
+            BtnLimitList.Content = limited > 0 ? $"⏱ 上传限速 ({limited})" : "⏱ 上传限速";
+        }
 
         if (_tray is not null)
         {
@@ -217,6 +356,16 @@ public partial class MainWindow : Window
                 if (info.Path != null && !paths.Contains(info.Path)) paths.Add(info.Path);
             }
             var apps = names.Count == 0 ? "—" : string.Join(", ", names.Take(4)) + (names.Count > 4 ? $" 等 {names.Count} 项" : "");
+            var sourceAddresses = conns
+                .Where(c => string.Equals(ConnectionHelper.ExtractIp(c.Remote), r.Ip, StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.Local)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var source = sourceAddresses.Count == 0
+                ? "—"
+                : string.Join(", ", sourceAddresses.Take(3)) +
+                  (sourceAddresses.Count > 3 ? $" 等 {sourceAddresses.Count} 个" : "");
             connByIp.TryGetValue(r.Ip, out var connCount);
 
             bool blocked = false;
@@ -239,7 +388,7 @@ public partial class MainWindow : Window
                 _ipByAddr[r.Ip] = row;
                 _ipRows.Add(row);
             }
-            row.Apply(r.TickSent, r.TickRecv, r.TotalSent, r.TotalRecv, apps, paths, connCount, blocked, elapsed, nowUtc);
+            row.Apply(r.TickSent, r.TickRecv, r.TotalSent, r.TotalRecv, apps, paths, source, connCount, blocked, elapsed, nowUtc);
         }
 
         for (int i = _ipRows.Count - 1; i >= 0; i--)
@@ -511,7 +660,104 @@ public partial class MainWindow : Window
         catch (Exception ex) { Log.Error("打开文件位置失败：" + ex.Message); }
     }
 
-    // ── 托盘 ─────────────────────────────────────────────
+    private void OnOpenUploadLimits(object sender, RoutedEventArgs e)
+    {
+        foreach (Window w in Application.Current.Windows)
+            if (w is UploadLimitListWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        new UploadLimitListWindow(_uploadLimits).Show();
+    }
+
+    private void OnOpenStrictUploadGroups(object sender, RoutedEventArgs e)
+    {
+        foreach (Window w in Application.Current.Windows)
+            if (w is StrictUploadGroupListWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        new StrictUploadGroupListWindow(_strictUploadGroups).Show();
+    }
+
+    private void OnAppContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (RemoveUploadLimitMenu is null) return;
+        var hasLimit = AppList.SelectedItem is AppRow row
+            && _uploadLimits.FindKnown(row.Path) is not null;
+        RemoveUploadLimitMenu.Visibility = hasLimit ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnSetUploadLimit(object sender, RoutedEventArgs e)
+    {
+        if (AppList.SelectedItem is not AppRow row || string.IsNullOrWhiteSpace(row.Path))
+        {
+            MessageBox.Show(this, "该条目没有可识别的 exe 路径，系统/受保护进程无法设置程序级限速。",
+                "上传限速", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        try
+        {
+            var existing = _uploadLimits.Find(row.Path);
+            var win = new UploadLimitAddWindow(_uploadLimits, row.Path, existing) { Owner = this };
+            if (win.ShowDialog() == true) UpdateUploadLimitButtonState();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "上传限速", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnRemoveUploadLimit(object sender, RoutedEventArgs e)
+    {
+        if (AppList.SelectedItem is not AppRow row || string.IsNullOrWhiteSpace(row.Path)) return;
+        try
+        {
+            var entry = _uploadLimits.Find(row.Path);
+            if (entry is null)
+            {
+                MessageBox.Show(this, "该程序当前没有单程序上传限速规则。", "上传限速", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            _uploadLimits.Remove(entry);
+            UpdateUploadLimitButtonState();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "取消上传限速", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnSetStrictUploadGroup(object sender, RoutedEventArgs e)
+    {
+        if (AppList.SelectedItem is not AppRow row || string.IsNullOrWhiteSpace(row.Path))
+        {
+            MessageBox.Show(this, "该条目没有可识别的 exe 路径，无法加入严格进程组。",
+                "严格总限速", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        try
+        {
+            var win = new StrictUploadGroupAddWindow(_strictUploadGroups, initialPath: row.Path) { Owner = this };
+            if (win.ShowDialog() == true) return;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "严格总限速", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void UpdateUploadLimitButtonState()
+    {
+        if (BtnLimitList is not null)
+        {
+            var count = _uploadLimits.ActiveCount;
+            BtnLimitList.Content = count > 0 ? $"⏱ 上传限速 ({count})" : "⏱ 上传限速";
+        }
+    }
+
 
     private void InitTray()
     {
@@ -519,6 +765,8 @@ public partial class MainWindow : Window
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("显示主窗口", null, (_, _) => ShowMain());
         menu.Items.Add("屏蔽管理", null, (_, _) => Dispatcher.Invoke(() => OnOpenBlockList(this, new RoutedEventArgs())));
+        menu.Items.Add("上传限速", null, (_, _) => Dispatcher.Invoke(() => OnOpenUploadLimits(this, new RoutedEventArgs())));
+        menu.Items.Add("严格总限速", null, (_, _) => Dispatcher.Invoke(() => OnOpenStrictUploadGroups(this, new RoutedEventArgs())));
         menu.Items.Add("HTTP 调试", null, (_, _) => Dispatcher.Invoke(() => OnOpenHttpDebug(this, new RoutedEventArgs())));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("退出 NetWatch", null, (_, _) => ExitApp());
@@ -566,6 +814,14 @@ public partial class MainWindow : Window
         _tray = null;
         _monitor?.Dispose();
         _blocks.Dispose();
+        _uploadLimits.Dispose();
+        _strictUploadGroups.Dispose();
+    }
+
+    public void CleanupUploadLimits()
+    {
+        _uploadLimits.RemoveAll();
+        _strictUploadGroups.Dispose();
     }
 
     // ── 图标缓存 ─────────────────────────────────────────

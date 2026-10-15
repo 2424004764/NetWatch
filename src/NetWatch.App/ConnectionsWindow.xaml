@@ -39,7 +39,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="协议" Binding="{Binding Protocol}" Width="56"
                                     ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="本地地址" Binding="{Binding Local}" Width="225"
+                <DataGridTextColumn Header="源地址（本地）" Binding="{Binding Local}" Width="225"
                                     ElementStyle="{StaticResource CellText}"/>
                 <DataGridTextColumn Header="远程地址" Binding="{Binding RemoteText}" Width="*">
                     <DataGridTextColumn.ElementStyle>

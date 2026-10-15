@@ -24,6 +24,7 @@ public sealed class AppRow : INotifyPropertyChanged
     private double _upSpeed, _downSpeed;
     private long _totalUp, _totalDown;
     private int _connCount;
+    private string _uploadLimitText = "";
     private string _subTitle;
 
     public string Key { get; }
@@ -58,13 +59,20 @@ public sealed class AppRow : INotifyPropertyChanged
 
     public string SubTitle => _subTitle;
     public string UpSpeedText => Fmt.Speed(_upSpeed);
+    public string UploadLimitText => _uploadLimitText;
     public string DownSpeedText => Fmt.Speed(_downSpeed);
     public string TotalUpText => Fmt.Bytes(_totalUp);
     public string TotalDownText => Fmt.Bytes(_totalDown);
     public string ConnText => _connCount == 0 ? "—" : _connCount.ToString();
+    public double UploadSortValue => _upSpeed;
+    public double DownloadSortValue => _downSpeed;
+    public long TotalUploadSortValue => _totalUp;
+    public long TotalDownloadSortValue => _totalDown;
+    public int ConnectionSortValue => _connCount;
     public string ToolTipText => Path ?? Name;
 
-    public void Apply(AppAgg agg, IReadOnlyDictionary<int, int> connByPid, double elapsedSeconds, DateTime nowUtc)
+    public void Apply(AppAgg agg, IReadOnlyDictionary<int, int> connByPid, double elapsedSeconds, DateTime nowUtc,
+        string uploadLimitText = "")
     {
         foreach (var pid in agg.Pids) Pids.Add(pid);
         // 指数平滑，避免数值抖动
@@ -79,9 +87,11 @@ public sealed class AppRow : INotifyPropertyChanged
         _connCount = n;
 
         _subTitle = agg.SubTitle;
+        _uploadLimitText = uploadLimitText;
         LastUpdatedUtc = nowUtc;
 
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubTitle)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UploadLimitText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UpSpeedText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DownSpeedText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TotalUpText)));

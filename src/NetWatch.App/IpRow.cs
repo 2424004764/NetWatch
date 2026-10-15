@@ -13,6 +13,7 @@ public sealed class IpRow : INotifyPropertyChanged
     private long _totalUp, _totalDown;
     private string _apps = "";
     private List<string> _paths = new();
+    private string _source = "—";
     private int _conns;
     private bool _blocked;
 
@@ -31,11 +32,17 @@ public sealed class IpRow : INotifyPropertyChanged
     public string TotalDownText => Fmt.Bytes(_totalDown);
     public string AppsText => _apps;
     public IReadOnlyList<string> Paths => _paths;
+    public string SourceText => _source;
+    public double UploadSortValue => _upSpeed;
+    public double DownloadSortValue => _downSpeed;
+    public long TotalUploadSortValue => _totalUp;
+    public long TotalDownloadSortValue => _totalDown;
+    public int ConnectionSortValue => _conns;
     public string ConnText => _conns == 0 ? "—" : _conns.ToString();
     public string ToolTipText => Ip + (_blocked ? "（已屏蔽）" : "");
 
     public void Apply(double deltaUp, double deltaDown, long totalUp, long totalDown,
-        string apps, IReadOnlyList<string> paths, int conns, bool blocked, double elapsedSeconds, DateTime nowUtc)
+        string apps, IReadOnlyList<string> paths, string source, int conns, bool blocked, double elapsedSeconds, DateTime nowUtc)
     {
         _upSpeed = 0.5 * (deltaUp / elapsedSeconds) + 0.5 * _upSpeed;
         _downSpeed = 0.5 * (deltaDown / elapsedSeconds) + 0.5 * _downSpeed;
@@ -43,6 +50,7 @@ public sealed class IpRow : INotifyPropertyChanged
         _totalDown = totalDown;
         _apps = apps;
         _paths = paths.ToList();
+        _source = source;
         _conns = conns;
         _blocked = blocked;
         LastUpdatedUtc = nowUtc;
@@ -52,6 +60,7 @@ public sealed class IpRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TotalUpText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TotalDownText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AppsText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SourceText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToolTipText)));
     }
 }
